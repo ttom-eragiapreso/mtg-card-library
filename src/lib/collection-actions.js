@@ -5,6 +5,61 @@ import { authOptions } from "@/lib/auth"
 import { getCardsCollection, getUserCollectionsCollection } from "@/lib/models"
 import { revalidatePath } from "next/cache"
 
+// Import processCardData to ensure comprehensive card data
+const processCardData = (card) => {
+  // Ensure we have the best available image URL
+  if (!card.imageUrl && card.multiverseid) {
+    card.imageUrl = `https://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=${card.multiverseid}&type=card`
+  }
+  
+  // Add additional image sources for fallback
+  card.imageSources = []
+  
+  if (card.imageUrl) {
+    card.imageSources.push(card.imageUrl)
+  }
+  
+  if (card.multiverseid) {
+    card.imageSources.push(`https://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=${card.multiverseid}&type=card`)
+    card.imageSources.push(`http://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=${card.multiverseid}&type=card`)
+  }
+  
+  // Add Scryfall fallback if we have set and collector number
+  if (card.set && card.number) {
+    const setCode = card.set.toLowerCase()
+    const cardNumber = card.number.toLowerCase().replace(/[^a-z0-9]/g, '')
+    card.imageSources.push(`https://api.scryfall.com/cards/${setCode}/${cardNumber}?format=image`)
+  }
+  
+  // Remove duplicates
+  card.imageSources = [...new Set(card.imageSources)]
+  
+  // Ensure all array fields are arrays (API sometimes returns null)
+  card.colors = card.colors || []
+  card.colorIdentity = card.colorIdentity || []
+  card.types = card.types || []
+  card.subtypes = card.subtypes || []
+  card.supertypes = card.supertypes || []
+  card.names = card.names || []
+  card.variations = card.variations || []
+  card.printings = card.printings || []
+  card.rulings = card.rulings || []
+  
+  // Ensure legalities object exists with all formats
+  card.legalities = card.legalities || {}
+  const legalityFormats = ['standard', 'modern', 'legacy', 'vintage', 'commander', 'pioneer', 'historic', 'pauper', 'penny', 'duel', 'oldschool', 'premodern']
+  legalityFormats.forEach(format => {
+    if (!card.legalities[format]) {
+      card.legalities[format] = 'Not Legal'
+    }
+  })
+  
+  // Add timestamp for tracking
+  card.lastSyncedAt = new Date()
+  
+  return card
+}
+
 export async function addCardToCollection(cardData, collectionData = {}) {
   try {
     const session = await getServerSession(authOptions)
@@ -28,9 +83,10 @@ export async function addCardToCollection(cardData, collectionData = {}) {
     let cardId = cardData.id || cardData.multiverseid?.toString()
 
     if (!existingCard) {
-      // Save the card data to our database
+      // Process and save the comprehensive card data to our database
+      const processedCard = processCardData(cardData)
       const cardToSave = {
-        ...cardData,
+        ...processedCard,
         createdAt: new Date(),
         updatedAt: new Date()
       }
@@ -38,6 +94,17 @@ export async function addCardToCollection(cardData, collectionData = {}) {
       const result = await cardsCollection.insertOne(cardToSave)
       cardId = result.insertedId.toString()
     } else {
+      // Update existing card with any new data
+      const processedCard = processCardData(cardData)
+      await cardsCollection.updateOne(
+        { _id: existingCard._id },
+        {
+          $set: {
+            ...processedCard,
+            updatedAt: new Date()
+          }
+        }
+      )
       cardId = existingCard._id.toString()
     }
 

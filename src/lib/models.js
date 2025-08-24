@@ -1,24 +1,27 @@
-import clientPromise from './mongodb'
+import { connectDB } from './mongodb'
+import mongoose from 'mongoose'
 
-// Database collections
-export const getDb = async () => {
-  const client = await clientPromise
-  return client.db()
+// Ensure connection
+export const ensureConnection = async () => {
+  await connectDB()
 }
 
-// Users collection
+// Get the native MongoDB collections for backward compatibility
+export const getDb = async () => {
+  await ensureConnection()
+  return mongoose.connection.db
+}
+
 export const getUsersCollection = async () => {
   const db = await getDb()
   return db.collection('users')
 }
 
-// Cards collection - stores MTG card data
 export const getCardsCollection = async () => {
   const db = await getDb()
   return db.collection('cards')
 }
 
-// User collections - stores user's card collections
 export const getUserCollectionsCollection = async () => {
   const db = await getDb()
   return db.collection('userCollections')
@@ -35,14 +38,24 @@ export const createIndexes = async () => {
 
   // Card indexes
   await cardsCollection.createIndex({ 'multiverseid': 1 }, { unique: true, sparse: true })
+  await cardsCollection.createIndex({ 'id': 1 }, { unique: true, sparse: true })
   await cardsCollection.createIndex({ 'name': 'text', 'text': 'text' })
   await cardsCollection.createIndex({ 'name': 1 })
   await cardsCollection.createIndex({ 'set': 1 })
+  await cardsCollection.createIndex({ 'setName': 1 })
   await cardsCollection.createIndex({ 'types': 1 })
   await cardsCollection.createIndex({ 'subtypes': 1 })
+  await cardsCollection.createIndex({ 'supertypes': 1 })
   await cardsCollection.createIndex({ 'cmc': 1 })
   await cardsCollection.createIndex({ 'colors': 1 })
+  await cardsCollection.createIndex({ 'colorIdentity': 1 })
   await cardsCollection.createIndex({ 'rarity': 1 })
+  await cardsCollection.createIndex({ 'artist': 1 })
+  await cardsCollection.createIndex({ 'layout': 1 })
+  // Compound indexes for common queries
+  await cardsCollection.createIndex({ 'colors': 1, 'cmc': 1 })
+  await cardsCollection.createIndex({ 'types': 1, 'rarity': 1 })
+  await cardsCollection.createIndex({ 'set': 1, 'rarity': 1 })
 
   // User collection indexes
   await userCollectionsCollection.createIndex({ 'userId': 1 })
@@ -51,32 +64,81 @@ export const createIndexes = async () => {
 
 // Card schema validation (for reference)
 export const cardSchema = {
-  // From MTG API
+  // From MTG API - Core identification
   id: String, // MTG API ID
   multiverseid: Number,
   name: String,
   names: [String], // for double-faced cards
+  
+  // Mana and casting
   manaCost: String,
   cmc: Number, // converted mana cost
-  colors: [String],
-  colorIdentity: [String],
-  type: String,
-  supertypes: [String],
-  types: [String],
-  subtypes: [String],
-  rarity: String,
-  set: String,
-  setName: String,
-  text: String,
-  artist: String,
-  number: String,
+  colors: [String], // card colors
+  colorIdentity: [String], // commander color identity
+  
+  // Card type information
+  type: String, // full type line
+  supertypes: [String], // e.g., Legendary, Basic
+  types: [String], // e.g., Creature, Instant
+  subtypes: [String], // e.g., Human, Wizard
+  
+  // Set and rarity information
+  rarity: String, // Common, Uncommon, Rare, Mythic Rare
+  set: String, // set code
+  setName: String, // full set name
+  
+  // Card text and abilities
+  text: String, // card rules text
+  flavorText: String, // flavor text
+  
+  // Physical characteristics
   power: String,
   toughness: String,
-  loyalty: Number,
+  loyalty: Number, // for planeswalkers
+  
+  // Art and printing information
+  artist: String,
+  number: String, // collector number
   imageUrl: String,
+  watermark: String,
+  border: String, // black, white, silver, etc.
+  
+  // Layout and printing variations
+  layout: String, // normal, split, flip, double-faced, etc.
+  variations: [String], // multiverseids of variations
+  printings: [String], // sets this card was printed in
+  originalText: String, // original printed text
+  originalType: String, // original printed type
+  
+  // Format legality
+  legalities: {
+    standard: String, // Legal, Not Legal, Banned, Restricted
+    modern: String,
+    legacy: String,
+    vintage: String,
+    commander: String,
+    pioneer: String,
+    historic: String,
+    pauper: String,
+    penny: String,
+    duel: String,
+    oldschool: String,
+    premodern: String
+  },
+  
+  // Rulings and additional data
+  rulings: [{
+    date: String,
+    text: String
+  }],
+  
+  // Enhanced image sources for fallbacks
+  imageSources: [String],
+  
   // Additional metadata
   createdAt: Date,
-  updatedAt: Date
+  updatedAt: Date,
+  lastSyncedAt: Date // when card data was last updated from API
 }
 
 // User schema

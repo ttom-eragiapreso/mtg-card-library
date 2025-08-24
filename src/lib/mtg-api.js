@@ -1,4 +1,7 @@
 import axios from 'axios'
+// Import MTG SDK for enhanced API integration
+// Note: We'll use axios for now as the SDK may have compatibility issues
+// import mtg from 'mtgsdk'
 
 const MTG_API_BASE_URL = process.env.MTG_API_BASE_URL || 'https://api.magicthegathering.io/v1'
 
@@ -52,6 +55,63 @@ mtgApiClient.interceptors.response.use(
   }
 )
 
+// Enhanced card processing to ensure image URLs are available
+const processCardData = (card) => {
+  // Ensure we have the best available image URL
+  if (!card.imageUrl && card.multiverseid) {
+    card.imageUrl = `https://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=${card.multiverseid}&type=card`
+  }
+  
+  // Add additional image sources for fallback
+  card.imageSources = []
+  
+  if (card.imageUrl) {
+    card.imageSources.push(card.imageUrl)
+  }
+  
+  if (card.multiverseid) {
+    card.imageSources.push(`https://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=${card.multiverseid}&type=card`)
+    card.imageSources.push(`http://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=${card.multiverseid}&type=card`)
+  }
+  
+  // Add Scryfall fallback if we have set and collector number
+  if (card.set && card.number) {
+    const setCode = card.set.toLowerCase()
+    const cardNumber = card.number.toLowerCase().replace(/[^a-z0-9]/g, '')
+    card.imageSources.push(`https://api.scryfall.com/cards/${setCode}/${cardNumber}?format=image`)
+  }
+  
+  // Remove duplicates
+  card.imageSources = [...new Set(card.imageSources)]
+  
+  // Ensure all array fields are arrays (API sometimes returns null)
+  card.colors = card.colors || []
+  card.colorIdentity = card.colorIdentity || []
+  card.types = card.types || []
+  card.subtypes = card.subtypes || []
+  card.supertypes = card.supertypes || []
+  card.names = card.names || []
+  card.variations = card.variations || []
+  card.printings = card.printings || []
+  card.rulings = card.rulings || []
+  
+  // Ensure legalities object exists with all formats
+  card.legalities = card.legalities || {}
+  const legalityFormats = ['standard', 'modern', 'legacy', 'vintage', 'commander', 'pioneer', 'historic', 'pauper', 'penny', 'duel', 'oldschool', 'premodern']
+  legalityFormats.forEach(format => {
+    if (!card.legalities[format]) {
+      card.legalities[format] = 'Not Legal'
+    }
+  })
+  
+  // Add timestamp for tracking
+  card.lastSyncedAt = new Date()
+  
+  return card
+}
+
+// Note: Database operations moved to collection-actions.js to keep this client-safe
+
 // Search cards by name
 export const searchCardsByName = async (name, page = 1, pageSize = 100) => {
   try {
@@ -62,8 +122,12 @@ export const searchCardsByName = async (name, page = 1, pageSize = 100) => {
         pageSize
       }
     })
+    
+    // Process cards to enhance image data
+    const processedCards = (response.data.cards || []).map(processCardData)
+    
     return {
-      cards: response.data.cards || [],
+      cards: processedCards,
       totalCount: parseInt(response.headers['total-count'] || '0'),
       currentPage: page,
       pageSize
@@ -78,7 +142,7 @@ export const searchCardsByName = async (name, page = 1, pageSize = 100) => {
 export const getCardById = async (id) => {
   try {
     const response = await mtgApiClient.get(`/cards/${id}`)
-    return response.data.card
+    return processCardData(response.data.card)
   } catch (error) {
     console.error('Error fetching card by ID:', error)
     throw error
@@ -103,7 +167,8 @@ export const getAllVersionsOfCard = async (name) => {
       card.name.toLowerCase() === name.toLowerCase()
     )
     
-    return exactMatches
+    // Process cards to enhance image data
+    return exactMatches.map(processCardData)
   } catch (error) {
     console.error('Error fetching all versions of card:', error)
     throw error
@@ -138,8 +203,11 @@ export const searchCardsWithFilters = async (filters = {}) => {
 
     const response = await mtgApiClient.get('/cards', { params })
     
+    // Process cards to enhance image data
+    const processedCards = (response.data.cards || []).map(processCardData)
+    
     return {
-      cards: response.data.cards || [],
+      cards: processedCards,
       totalCount: parseInt(response.headers['total-count'] || '0'),
       currentPage: params.page,
       pageSize: params.pageSize

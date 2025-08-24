@@ -16,6 +16,8 @@
     "daisyui": "^5.0.50",
     "html5-qrcode": "^2.3.8",
     "mongodb": "^6.18.0",
+    "mongoose": "^8.18.0",
+    "mtgsdk": "^1.0.1",
     "next": "15.5.0",
     "next-auth": "^4.24.11",
     "react": "19.1.0",
