@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import ManaCost from './ManaCost'
 import { useModal } from './ModalProvider'
 import { PlusIcon, CheckIcon } from '@heroicons/react/24/outline'

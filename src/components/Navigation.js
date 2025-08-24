@@ -1,10 +1,10 @@
-'use client';
+'use client'
 
-import { useSession, signOut } from 'next-auth/react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState, useEffect, useRef } from 'react';
-import { MagnifyingGlassIcon, FolderIcon, CameraIcon } from '@heroicons/react/24/outline';
+import Link from 'next/link'
+import { useSession, signOut } from 'next-auth/react'
+import { usePathname } from 'next/navigation'
+import { useState, useEffect, useRef } from 'react'
+import { MagnifyingGlassIcon, FolderIcon, CameraIcon } from '@heroicons/react/24/outline'
 
 export default function Navigation() {
   const { data: session, status } = useSession();

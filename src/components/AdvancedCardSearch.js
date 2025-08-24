@@ -36,13 +36,9 @@ export default function AdvancedCardSearch({
   const [showFilters, setShowFilters] = useState(false)
   
   // Available options (would be fetched from API in real implementation)
-  const [typeOptions, setTypeOptions] = useState([
+  const typeOptions = [
     'Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Planeswalker'
-  ])
-  
-  const [subtypeOptions, setSubtypeOptions] = useState([
-    'Human', 'Wizard', 'Goblin', 'Elf', 'Angel', 'Dragon', 'Beast', 'Equipment', 'Aura'
-  ])
+  ]
 
   const searchCards = async () => {
     // Don't search if no meaningful filters are set

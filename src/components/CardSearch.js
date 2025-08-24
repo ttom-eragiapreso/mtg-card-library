@@ -5,12 +5,12 @@ import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import MTGCard from './MTGCard'
 
 export default function CardSearch({ 
-  onCardSelect, 
   onAddToCollection,
   userCollection = [],
+  initialQuery = '',
   className = ''
 }) {
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchTerm, setSearchTerm] = useState(initialQuery)
   const [searchResults, setSearchResults] = useState([])
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState('')
@@ -105,7 +105,7 @@ export default function CardSearch({
     return acc
   }, {})
 
-  const uniqueCards = Object.entries(groupedResults).map(([name, cards]) => {
+  const uniqueCards = Object.entries(groupedResults).map(([_name, cards]) => {
     // Return the first card of each name group
     return cards[0]
   })

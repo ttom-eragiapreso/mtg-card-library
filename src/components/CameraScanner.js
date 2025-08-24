@@ -10,7 +10,6 @@ export default function CameraScanner({
 }) {
   const [isScanning, setIsScanning] = useState(false)
   const [error, setError] = useState('')
-  const [hasPermission, setHasPermission] = useState(null)
   const [stream, setStream] = useState(null)
   const [isProcessing, setIsProcessing] = useState(false)
   
@@ -39,7 +38,6 @@ export default function CameraScanner({
 
         const mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
         setStream(mediaStream)
-        setHasPermission(true)
 
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream
@@ -51,7 +49,6 @@ export default function CameraScanner({
     } catch (error) {
       console.error('Camera access error:', error)
       setError(`Camera access failed: ${error.message}`)
-      setHasPermission(false)
       setIsScanning(false)
     }
   }
@@ -116,7 +113,7 @@ export default function CameraScanner({
     }
   }
 
-  const processImage = async (imageFile) => {
+  const processImage = async (_imageFile) => {
     // In a real implementation, this would:
     // 1. Send image to an OCR/image recognition service
     // 2. Extract card name from the image

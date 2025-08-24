@@ -7,7 +7,7 @@ import Navigation from '@/components/Navigation'
 import CameraScanner from '@/components/CameraScanner'
 import CardSearch from '@/components/CardSearch'
 import { addCardToCollection } from '@/lib/collection-actions'
-import { CameraIcon, MagnifyingGlassIcon, DevicePhoneMobileIcon } from '@heroicons/react/24/outline'
+import { CameraIcon, DevicePhoneMobileIcon } from '@heroicons/react/24/outline'
 
 export default function ScanPage() {
   const { data: session, status } = useSession()
@@ -59,10 +59,6 @@ export default function ScanPage() {
     setTimeout(() => setNotification(null), 5000)
   }
 
-  // Check if device supports camera
-  const isMobileDevice = () => {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">

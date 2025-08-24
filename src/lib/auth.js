@@ -61,7 +61,7 @@ export const authOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account, profile: _profile }) {
       if (account?.provider === 'google') {
         try {
           const usersCollection = await getUsersCollection();
@@ -94,7 +94,7 @@ export const authOptions = {
       }
       return true;
     },
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account: _account }) {
       // Initial sign in - store essential user data
       if (user) {
         token.id = user.id;

@@ -46,7 +46,7 @@ export default function SignInPage() {
           router.push('/')
         }
       }
-    } catch (error) {
+    } catch {
       setError('An error occurred during login')
     } finally {
       setLoading(false)
@@ -76,7 +76,7 @@ export default function SignInPage() {
       } else {
         setError(data.error || 'Registration failed')
       }
-    } catch (error) {
+    } catch {
       setError('An error occurred during registration')
     } finally {
       setLoading(false)

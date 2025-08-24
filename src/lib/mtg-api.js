@@ -1,48 +1,47 @@
 import axios from 'axios'
-// Import MTG SDK for enhanced API integration
-// Note: We'll use axios for now as the SDK may have compatibility issues
-// import mtg from 'mtgsdk'
 
-const MTG_API_BASE_URL = process.env.MTG_API_BASE_URL || 'https://api.magicthegathering.io/v1'
+const SCRYFALL_API_BASE_URL = process.env.SCRYFALL_API_BASE_URL || 'https://api.scryfall.com'
 
-// Rate limiting - MTG API allows 5000 requests per hour
+// Rate limiting - Scryfall allows 10 requests per second with bursts
+// We'll be more conservative and limit to 5 requests per second
 let requestCount = 0
-let requestResetTime = Date.now() + (60 * 60 * 1000) // 1 hour from now
+let requestWindow = Date.now() + 1000 // 1 second window
 
 const checkRateLimit = () => {
   const now = Date.now()
-  if (now > requestResetTime) {
+  if (now > requestWindow) {
     requestCount = 0
-    requestResetTime = now + (60 * 60 * 1000)
+    requestWindow = now + 1000
   }
   
-  if (requestCount >= 5000) {
-    throw new Error('Rate limit exceeded. Please try again later.')
+  if (requestCount >= 5) {
+    throw new Error('Rate limit exceeded. Please slow down your requests.')
   }
   
   requestCount++
 }
 
 // Create axios instance with default config
-const mtgApiClient = axios.create({
-  baseURL: MTG_API_BASE_URL,
+const scryfallApiClient = axios.create({
+  baseURL: SCRYFALL_API_BASE_URL,
   timeout: 10000,
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'User-Agent': 'MTG-Library/1.0' // Scryfall requests a User-Agent
   }
 })
 
 // Request interceptor for rate limiting
-mtgApiClient.interceptors.request.use((config) => {
+scryfallApiClient.interceptors.request.use((config) => {
   checkRateLimit()
   return config
 })
 
 // Response interceptor for error handling
-mtgApiClient.interceptors.response.use(
+scryfallApiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 403) {
+    if (error.response?.status === 429) {
       throw new Error('Rate limit exceeded. Please try again later.')
     }
     if (error.response?.status === 404) {
@@ -51,9 +50,88 @@ mtgApiClient.interceptors.response.use(
     if (error.code === 'ECONNABORTED') {
       throw new Error('Request timed out. Please try again.')
     }
-    throw new Error(error.response?.data?.message || error.message || 'An error occurred while fetching data.')
+    throw new Error(error.response?.data?.details || error.message || 'An error occurred while fetching data.')
   }
 )
+
+// Transform Scryfall data to match expected MTG API format
+const transformScryfallCard = (scryfallCard) => {
+  const transformed = {
+    // Core identification
+    id: scryfallCard.id,
+    multiverseid: scryfallCard.multiverse_ids?.[0]?.toString() || null,
+    name: scryfallCard.name,
+    names: scryfallCard.card_faces?.map(face => face.name) || [],
+    
+    // Mana and casting
+    manaCost: scryfallCard.mana_cost || '',
+    cmc: scryfallCard.cmc || 0,
+    colors: scryfallCard.colors || [],
+    colorIdentity: scryfallCard.color_identity || [],
+    
+    // Card type information
+    type: scryfallCard.type_line || '',
+    supertypes: [],
+    types: [],
+    subtypes: [],
+    
+    // Set and rarity information
+    rarity: scryfallCard.rarity || '',
+    set: scryfallCard.set?.toUpperCase() || '',
+    setName: scryfallCard.set_name || '',
+    
+    // Card text and abilities
+    text: scryfallCard.oracle_text || '',
+    flavorText: scryfallCard.flavor_text || '',
+    
+    // Physical characteristics
+    power: scryfallCard.power || null,
+    toughness: scryfallCard.toughness || null,
+    loyalty: scryfallCard.loyalty || null,
+    
+    // Art and printing information
+    artist: scryfallCard.artist || '',
+    number: scryfallCard.collector_number || '',
+    imageUrl: scryfallCard.image_uris?.normal || scryfallCard.card_faces?.[0]?.image_uris?.normal || '',
+    watermark: scryfallCard.watermark || '',
+    border: scryfallCard.border_color || '',
+    
+    // Layout and printing variations
+    layout: scryfallCard.layout || 'normal',
+    variations: [], // Scryfall doesn't provide this in the same way
+    printings: scryfallCard.all_parts?.map(part => part.set) || [],
+    originalText: scryfallCard.printed_text || scryfallCard.oracle_text || '',
+    originalType: scryfallCard.printed_type_line || scryfallCard.type_line || '',
+    
+    // Foreign names - Scryfall doesn't include these in search results
+    // We'll need to fetch them separately if needed
+    foreignNames: [],
+    
+    // Format legality - transform Scryfall format
+    legalities: Object.entries(scryfallCard.legalities || {}).map(([format, legality]) => ({
+      format: format.charAt(0).toUpperCase() + format.slice(1),
+      legality: legality.charAt(0).toUpperCase() + legality.slice(1)
+    })),
+    
+    // Rulings - need to fetch separately from Scryfall
+    rulings: []
+  }
+  
+  // Parse type line to extract supertypes, types, and subtypes
+  if (transformed.type) {
+    const typeParts = transformed.type.split(' — ')
+    const mainTypes = typeParts[0]?.split(' ') || []
+    const subtypes = typeParts[1]?.split(' ') || []
+    
+    // Identify supertypes (common ones)
+    const knownSupertypes = ['Legendary', 'Basic', 'Snow', 'World', 'Ongoing']
+    transformed.supertypes = mainTypes.filter(type => knownSupertypes.includes(type))
+    transformed.types = mainTypes.filter(type => !knownSupertypes.includes(type))
+    transformed.subtypes = subtypes
+  }
+  
+  return transformed
+}
 
 // Enhanced card processing to ensure image URLs are available
 const processCardData = (card) => {
@@ -150,22 +228,25 @@ export const searchCardsByExactName = async (name, page = 1, pageSize = 100) => 
   }
 }
 
-// Search cards by name (includes foreign names with improved matching)
-export const searchCardsByName = async (name, page = 1, pageSize = 100, includeForeign = true) => {
+// Search cards by name using Scryfall API
+export const searchCardsByName = async (name, page = 1, pageSize = 100, _includeForeign = true) => {
   try {
-    const response = await mtgApiClient.get('/cards', {
+    const response = await scryfallApiClient.get('/cards/search', {
       params: {
-        name,
-        page,
-        pageSize
+        q: name, // Scryfall uses 'q' for general search
+        unique: 'prints', // Get all printings, not just unique cards
+        page: page
       }
     })
     
-    let allCards = response.data.cards || []
-    const totalCount = parseInt(response.headers['total-count'] || '0')
+    let allCards = response.data.data || []
+    const totalCount = response.data.total_cards || 0
+    
+    // Transform Scryfall cards to MTG API format
+    const transformedCards = allCards.map(transformScryfallCard)
     
     // Sort results to prioritize exact matches
-    const sortedCards = allCards.sort((a, b) => {
+    const sortedCards = transformedCards.sort((a, b) => {
       const searchTerm = name.toLowerCase()
       
       // Check for exact English name match
@@ -175,17 +256,6 @@ export const searchCardsByName = async (name, page = 1, pageSize = 100, includeF
       if (aExactEnglish && !bExactEnglish) return -1
       if (!aExactEnglish && bExactEnglish) return 1
       
-      // Check for exact foreign name match
-      const aExactForeign = a.foreignNames && a.foreignNames.some(fn => 
-        fn.name && fn.name.toLowerCase() === searchTerm
-      )
-      const bExactForeign = b.foreignNames && b.foreignNames.some(fn => 
-        fn.name && fn.name.toLowerCase() === searchTerm
-      )
-      
-      if (aExactForeign && !bExactForeign) return -1
-      if (!aExactForeign && bExactForeign) return 1
-      
       // Check for English name starting with search term
       const aStartsEnglish = a.name && a.name.toLowerCase().startsWith(searchTerm)
       const bStartsEnglish = b.name && b.name.toLowerCase().startsWith(searchTerm)
@@ -193,13 +263,17 @@ export const searchCardsByName = async (name, page = 1, pageSize = 100, includeF
       if (aStartsEnglish && !bStartsEnglish) return -1
       if (!aStartsEnglish && bStartsEnglish) return 1
       
-      // Default to alphabetical order
-      return (a.name || '').localeCompare(b.name || '')
+      // Default to alphabetical order by set and then collector number
+      const setComparison = (a.set || '').localeCompare(b.set || '')
+      if (setComparison !== 0) return setComparison
+      
+      return (a.number || '').localeCompare(b.number || '')
     })
     
     // Process cards to enhance image data
     const processedCards = sortedCards.map(processCardData)
     
+    // Don't limit cards here - let the frontend handle pagination/grouping
     return {
       cards: processedCards,
       totalCount: totalCount,
@@ -212,51 +286,54 @@ export const searchCardsByName = async (name, page = 1, pageSize = 100, includeF
   }
 }
 
-// Search cards by language and name
+// Search cards by language and name using Scryfall API
 export const searchCardsByLanguage = async (name, language = 'English', page = 1, pageSize = 100) => {
   try {
-    const params = {
-      page,
-      pageSize
-    }
+    // For non-English languages, we'll search for cards with specific language codes
+    let query = name
     
-    // Add name parameter
-    if (name) {
-      params.name = name
-    }
-    
-    // Add language parameter if not English
     if (language && language !== 'English') {
-      params.language = language
+      // Map language names to Scryfall language codes
+      const languageMap = {
+        'Spanish': 'es',
+        'French': 'fr', 
+        'German': 'de',
+        'Italian': 'it',
+        'Portuguese': 'pt',
+        'Japanese': 'ja',
+        'Chinese Simplified': 'zhs',
+        'Chinese Traditional': 'zht',
+        'Korean': 'ko',
+        'Russian': 'ru'
+      }
+      
+      const langCode = languageMap[language]
+      if (langCode) {
+        query = `${name} lang:${langCode}`
+      }
     }
     
-    const response = await mtgApiClient.get('/cards', { params })
+    const response = await scryfallApiClient.get('/cards/search', {
+      params: {
+        q: query,
+        page: page
+      }
+    })
     
-    let cards = response.data.cards || []
+    let cards = response.data.data || []
     
-    // If we specified a language other than English, filter results to ensure they actually have that language
-    if (language && language !== 'English' && name) {
-      cards = cards.filter(card => {
-        // Check if card has foreign names with the specified language
-        if (!card.foreignNames || !Array.isArray(card.foreignNames)) {
-          return false
-        }
-        
-        return card.foreignNames.some(foreign => {
-          const hasMatchingLanguage = foreign.language === language
-          const hasMatchingName = foreign.name && 
-            foreign.name.toLowerCase().includes(name.toLowerCase())
-          return hasMatchingLanguage && hasMatchingName
-        })
-      })
-    }
+    // Transform Scryfall cards to MTG API format
+    const transformedCards = cards.map(transformScryfallCard)
     
     // Process cards to enhance image data
-    const processedCards = cards.map(processCardData)
+    const processedCards = transformedCards.map(processCardData)
+    
+    // Limit to requested page size
+    const limitedCards = processedCards.slice(0, pageSize)
     
     return {
-      cards: processedCards,
-      totalCount: parseInt(response.headers['total-count'] || cards.length.toString()),
+      cards: limitedCards,
+      totalCount: response.data.total_cards || 0,
       currentPage: page,
       pageSize
     }
@@ -272,84 +349,116 @@ export const searchCardsByLanguage = async (name, language = 'English', page = 1
   }
 }
 
-// Get card by specific ID
+// Get card by specific ID using Scryfall API
 export const getCardById = async (id) => {
   try {
-    const response = await mtgApiClient.get(`/cards/${id}`)
-    return processCardData(response.data.card)
+    const response = await scryfallApiClient.get(`/cards/${id}`)
+    const transformedCard = transformScryfallCard(response.data)
+    return processCardData(transformedCard)
   } catch (error) {
     console.error('Error fetching card by ID:', error)
     throw error
   }
 }
 
-// Get all versions of a card by name (including foreign names)
+// Get all versions of a card by name using Scryfall API
 export const getAllVersionsOfCard = async (name) => {
   try {
-    // Search by both English and foreign names
-    const searchResults = await searchCardsByName(name, 1, 100, true)
-    
-    // Filter to exact matches (English name or any foreign name)
-    const exactMatches = searchResults.cards.filter(card => {
-      // Check English name
-      if (card.name.toLowerCase() === name.toLowerCase()) {
-        return true
+    // Use Scryfall's exact name search to get all printings
+    const response = await scryfallApiClient.get('/cards/search', {
+      params: {
+        q: `!"${name}"`, // Exact name search in Scryfall
+        unique: 'prints' // Get all printings
       }
-      
-      // Check foreign names
-      if (card.foreignNames && Array.isArray(card.foreignNames)) {
-        return card.foreignNames.some(foreign => 
-          foreign.name && foreign.name.toLowerCase() === name.toLowerCase()
-        )
-      }
-      
-      return false
     })
     
-    return exactMatches
+    const allCards = response.data.data || []
+    
+    // Transform and process cards
+    const transformedCards = allCards.map(transformScryfallCard)
+    const processedCards = transformedCards.map(processCardData)
+    
+    return processedCards
   } catch (error) {
     console.error('Error fetching all versions of card:', error)
     throw error
   }
 }
 
-// Search cards with filters
+// Search cards with filters using Scryfall API
 export const searchCardsWithFilters = async (filters = {}) => {
   try {
-    const params = {
-      page: filters.page || 1,
-      pageSize: filters.pageSize || 100
+    // Build Scryfall query string
+    let queryParts = []
+    
+    if (filters.name) {
+      queryParts.push(filters.name)
     }
-
-    // Add various filters
-    if (filters.name) params.name = filters.name
-    if (filters.foreignName) params.foreignName = filters.foreignName
-    if (filters.set) params.set = filters.set
+    
+    if (filters.set) {
+      queryParts.push(`set:${filters.set}`)
+    }
+    
     if (filters.colors && filters.colors.length > 0) {
-      params.colors = filters.colors.join(',')
+      const colorQuery = filters.colors.map(color => `color:${color}`).join(' OR ')
+      queryParts.push(`(${colorQuery})`)
     }
+    
     if (filters.types && filters.types.length > 0) {
-      params.types = filters.types.join(',')
+      const typeQuery = filters.types.map(type => `type:${type}`).join(' OR ')
+      queryParts.push(`(${typeQuery})`)
     }
+    
     if (filters.subtypes && filters.subtypes.length > 0) {
-      params.subtypes = filters.subtypes.join(',')
+      const subtypeQuery = filters.subtypes.map(subtype => `type:${subtype}`).join(' OR ')
+      queryParts.push(`(${subtypeQuery})`)
     }
+    
     if (filters.supertypes && filters.supertypes.length > 0) {
-      params.supertypes = filters.supertypes.join(',')
+      const supertypeQuery = filters.supertypes.map(supertype => `type:${supertype}`).join(' OR ')
+      queryParts.push(`(${supertypeQuery})`)
     }
-    if (filters.rarity) params.rarity = filters.rarity
-    if (filters.cmc !== undefined) params.cmc = filters.cmc
-
-    const response = await mtgApiClient.get('/cards', { params })
+    
+    if (filters.rarity) {
+      queryParts.push(`rarity:${filters.rarity.toLowerCase()}`)
+    }
+    
+    if (filters.cmc !== undefined) {
+      queryParts.push(`cmc:${filters.cmc}`)
+    }
+    
+    // Handle CMC range filtering
+    if (filters.needsCmcFilter) {
+      const { min, max } = filters.needsCmcFilter
+      queryParts.push(`cmc>=${min} cmc<=${max}`)
+    }
+    
+    const query = queryParts.join(' ') || '*' // Default to all cards if no filters
+    
+    const response = await scryfallApiClient.get('/cards/search', {
+      params: {
+        q: query,
+        page: filters.page || 1
+      }
+    })
+    
+    const allCards = response.data.data || []
+    
+    // Transform Scryfall cards to MTG API format
+    const transformedCards = allCards.map(transformScryfallCard)
     
     // Process cards to enhance image data
-    const processedCards = (response.data.cards || []).map(processCardData)
+    const processedCards = transformedCards.map(processCardData)
+    
+    // Limit to requested page size
+    const pageSize = filters.pageSize || 100
+    const limitedCards = processedCards.slice(0, pageSize)
     
     return {
-      cards: processedCards,
-      totalCount: parseInt(response.headers['total-count'] || '0'),
-      currentPage: params.page,
-      pageSize: params.pageSize
+      cards: limitedCards,
+      totalCount: response.data.total_cards || 0,
+      currentPage: filters.page || 1,
+      pageSize: pageSize
     }
   } catch (error) {
     console.error('Error searching cards with filters:', error)
@@ -357,44 +466,56 @@ export const searchCardsWithFilters = async (filters = {}) => {
   }
 }
 
-// Get sets information
+// Get sets information using Scryfall API
 export const getAllSets = async () => {
   try {
-    const response = await mtgApiClient.get('/sets')
-    return response.data.sets || []
+    const response = await scryfallApiClient.get('/sets')
+    const scryfallSets = response.data.data || []
+    
+    // Transform Scryfall sets to match expected format
+    const transformedSets = scryfallSets.map(set => ({
+      code: set.code?.toUpperCase() || '',
+      name: set.name || '',
+      type: set.set_type || '',
+      releaseDate: set.released_at || '',
+      block: set.block || '',
+      onlineOnly: set.digital || false
+    }))
+    
+    return transformedSets
   } catch (error) {
     console.error('Error fetching sets:', error)
     throw error
   }
 }
 
-// Get types
+// Get types using Scryfall catalog
 export const getAllTypes = async () => {
   try {
-    const response = await mtgApiClient.get('/types')
-    return response.data.types || []
+    const response = await scryfallApiClient.get('/catalog/card-types')
+    return response.data.data || []
   } catch (error) {
     console.error('Error fetching types:', error)
     throw error
   }
 }
 
-// Get subtypes
+// Get subtypes using Scryfall catalog
 export const getAllSubtypes = async () => {
   try {
-    const response = await mtgApiClient.get('/subtypes')
-    return response.data.subtypes || []
+    const response = await scryfallApiClient.get('/catalog/creature-types')
+    return response.data.data || []
   } catch (error) {
     console.error('Error fetching subtypes:', error)
     throw error
   }
 }
 
-// Get supertypes
+// Get supertypes using Scryfall catalog
 export const getAllSupertypes = async () => {
   try {
-    const response = await mtgApiClient.get('/supertypes')
-    return response.data.supertypes || []
+    const response = await scryfallApiClient.get('/catalog/supertypes')
+    return response.data.data || []
   } catch (error) {
     console.error('Error fetching supertypes:', error)
     throw error

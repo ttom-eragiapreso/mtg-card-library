@@ -286,7 +286,7 @@ export async function getUserCollection(filters = {}) {
             if (!card) {
               card = await cardsCollection.findOne({ id: entry.cardId })
             }
-          } catch (error) {
+          } catch {
             // If ObjectId conversion fails, try as string ID
             card = await cardsCollection.findOne({ id: entry.cardId })
           }

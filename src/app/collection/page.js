@@ -110,9 +110,10 @@ export default function CollectionPage() {
           return (a.card?.name || '').localeCompare(b.card?.name || '')
         case 'set':
           return (a.card?.set || '').localeCompare(b.card?.set || '')
-        case 'rarity':
+        case 'rarity': {
           const rarityOrder = { 'common': 1, 'uncommon': 2, 'rare': 3, 'mythic rare': 4 }
           return (rarityOrder[a.card?.rarity?.toLowerCase()] || 0) - (rarityOrder[b.card?.rarity?.toLowerCase()] || 0)
+        }
         case 'dateAdded':
         default:
           return new Date(b.createdAt || 0) - new Date(a.createdAt || 0)

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useModal } from './ModalProvider'
-import { TrashIcon, EyeIcon, InformationCircleIcon } from '@heroicons/react/24/outline'
+import { TrashIcon, InformationCircleIcon } from '@heroicons/react/24/outline'
 
 export default function CollectionCard({ 
   collectionItem, 
