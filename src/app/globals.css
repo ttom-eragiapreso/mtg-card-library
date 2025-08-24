@@ -1,15 +1,10 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -20,7 +15,116 @@
 }
 
 body {
-  background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Global contrast improvements - override poor DaisyUI defaults */
+.text-base-content\/60,
+.text-base-content\/70,
+.text-base-content\/80 {
+  @apply text-gray-700 !important;
+}
+
+.text-base-content\/50 {
+  @apply text-gray-600 !important;
+}
+
+.text-base-content\/40 {
+  @apply text-gray-500 !important;
+}
+
+/* Ensure modal and card backgrounds are always white with dark text */
+.modal-box,
+.card,
+.card-body {
+  @apply bg-white text-gray-900 !important;
+}
+
+/* Override DaisyUI button styles to ensure readability */
+.btn {
+  @apply font-semibold !important;
+}
+
+.btn-primary {
+  @apply bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0 !important;
+}
+
+.btn-secondary {
+  @apply bg-white text-gray-700 border-gray-300 hover:bg-gray-50 !important;
+}
+
+.btn-success {
+  @apply bg-green-600 text-white border-0 hover:bg-green-700 !important;
+}
+
+.btn-error {
+  @apply bg-red-600 text-white border-0 hover:bg-red-700 !important;
+}
+
+/* Input styling improvements */
+.input,
+.input-bordered {
+  @apply bg-white text-gray-900 border-gray-300 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 !important;
+}
+
+/* Alert styling improvements */
+.alert {
+  @apply rounded-lg font-medium !important;
+}
+
+.alert-error {
+  @apply bg-red-50 text-red-700 border border-red-200 !important;
+}
+
+.alert-success {
+  @apply bg-green-50 text-green-700 border border-green-200 !important;
+}
+
+.alert-warning {
+  @apply bg-yellow-50 text-yellow-700 border border-yellow-200 !important;
+}
+
+.alert-info {
+  @apply bg-blue-50 text-blue-700 border border-blue-200 !important;
+}
+
+/* Badge styling improvements */
+.badge {
+  @apply font-semibold !important;
+}
+
+.badge-outline {
+  @apply bg-gray-100 text-gray-800 border-gray-300 !important;
+}
+
+/* Ensure all headings have proper contrast */
+h1, h2, h3, h4, h5, h6,
+.card-title {
+  @apply text-gray-900 !important;
+}
+
+/* MTG Mana symbols styling */
+.mana-symbol {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1rem;
+}
+
+.mana-white { @apply bg-yellow-100 text-yellow-800 border border-yellow-300; }
+.mana-blue { @apply bg-blue-500 text-white; }
+.mana-black { @apply bg-gray-800 text-white; }
+.mana-red { @apply bg-red-500 text-white; }
+.mana-green { @apply bg-green-500 text-white; }
+.mana-colorless { @apply bg-gray-300 text-gray-700; }
+
+/* Card rarity styling */
+.rarity-common { @apply text-gray-600; }
+.rarity-uncommon { @apply text-gray-400; }
+.rarity-rare { @apply text-yellow-500; }
+.rarity-mythic { @apply text-orange-500; }
