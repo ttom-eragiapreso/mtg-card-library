@@ -39,7 +39,7 @@ Generate NextAuth secret: `openssl rand -base64 32`
 - **Frontend**: Next.js 15, React 19, TailwindCSS with DaisyUI theme framework
 - **Authentication**: NextAuth.js with Google OAuth and MongoDB adapter
 - **Database**: MongoDB with collections for cards and user collections
-- **External API**: Magic: The Gathering API (5000 requests/hour rate limit)
+- **External API**: Scryfall API (10 requests/second, more current data)
 - **Camera**: HTML5 Camera API with react-camera-pro
 
 ### Core Directory Structure
@@ -74,7 +74,8 @@ src/
 - Text search index on name and card text
 
 **UserCollections Collection**:
-- User-specific card data with quantity, condition, notes, acquisition info
+- User-specific card data with quantity, condition, foil status, notes, acquisition info
+- Supports foil tracking for value estimation
 - Indexed by userId and cardId for fast lookups
 
 ## Key Architectural Patterns

@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import Navigation from '@/components/Navigation'
 import CardSearch from '@/components/CardSearch'
 import AdvancedCardSearch from '@/components/AdvancedCardSearch'
+import AddToCollectionModal from '@/components/AddToCollectionModal'
 import { addCardToCollection } from '@/lib/collection-actions'
 import { MagnifyingGlassIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline'
 
@@ -13,6 +14,9 @@ export default function SearchPage() {
   const { data: session, status } = useSession()
   const [searchType, setSearchType] = useState('basic') // 'basic' or 'advanced'
   const [notification, setNotification] = useState(null)
+  const [selectedCard, setSelectedCard] = useState(null)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [isAddingToCollection, setIsAddingToCollection] = useState(false)
 
   // Redirect to sign-in if not authenticated
   if (status === 'loading') {
@@ -27,14 +31,25 @@ export default function SearchPage() {
     redirect('/auth/signin')
   }
 
-  const handleAddToCollection = async (card) => {
+  const handleAddToCollection = (card) => {
     if (!session) return
     
+    setSelectedCard(card)
+    setShowAddModal(true)
+  }
+
+  const handleConfirmAddToCollection = async (card, collectionData) => {
+    setIsAddingToCollection(true)
+    
     try {
-      const result = await addCardToCollection(card)
+      const result = await addCardToCollection(card, collectionData)
       if (result.success) {
-        setNotification({ type: 'success', message: 'Card added to collection!' })
+        setNotification({ 
+          type: 'success', 
+          message: `${collectionData.foil ? 'Foil ' : ''}${card.name} added to collection!` 
+        })
         setTimeout(() => setNotification(null), 3000)
+        setShowAddModal(false)
       } else {
         setNotification({ type: 'error', message: result.error || 'Failed to add card' })
         setTimeout(() => setNotification(null), 3000)
@@ -43,7 +58,14 @@ export default function SearchPage() {
       console.error('Error adding card:', error)
       setNotification({ type: 'error', message: 'An error occurred while adding the card' })
       setTimeout(() => setNotification(null), 3000)
+    } finally {
+      setIsAddingToCollection(false)
     }
+  }
+
+  const handleCloseModal = () => {
+    setShowAddModal(false)
+    setSelectedCard(null)
   }
 
   return (
@@ -148,6 +170,15 @@ export default function SearchPage() {
           </div>
         </div>
       </div>
+      
+      {/* Add to Collection Modal */}
+      <AddToCollectionModal
+        card={selectedCard}
+        isOpen={showAddModal}
+        onClose={handleCloseModal}
+        onConfirm={handleConfirmAddToCollection}
+        isAdding={isAddingToCollection}
+      />
     </div>
   )
 }
