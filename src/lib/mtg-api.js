@@ -94,6 +94,7 @@ const processCardData = (card) => {
   card.variations = card.variations || []
   card.printings = card.printings || []
   card.rulings = card.rulings || []
+  card.foreignNames = card.foreignNames || []
   
   // Ensure legalities object exists with all formats
   card.legalities = card.legalities || {}
@@ -112,8 +113,45 @@ const processCardData = (card) => {
 
 // Note: Database operations moved to collection-actions.js to keep this client-safe
 
-// Search cards by name
-export const searchCardsByName = async (name, page = 1, pageSize = 100) => {
+// Search cards by exact name only (no partial matching)
+export const searchCardsByExactName = async (name, page = 1, pageSize = 100) => {
+  try {
+    // Get broader search results first
+    const searchResults = await searchCardsByName(name, page, pageSize, true)
+    
+    // Filter to only exact matches
+    const exactMatches = searchResults.cards.filter(card => {
+      const searchTerm = name.toLowerCase()
+      
+      // Check exact English name match
+      if (card.name && card.name.toLowerCase() === searchTerm) {
+        return true
+      }
+      
+      // Check exact foreign name match
+      if (card.foreignNames && Array.isArray(card.foreignNames)) {
+        return card.foreignNames.some(foreign => 
+          foreign.name && foreign.name.toLowerCase() === searchTerm
+        )
+      }
+      
+      return false
+    })
+    
+    return {
+      cards: exactMatches,
+      totalCount: exactMatches.length,
+      currentPage: page,
+      pageSize
+    }
+  } catch (error) {
+    console.error('Error searching cards by exact name:', error)
+    throw error
+  }
+}
+
+// Search cards by name (includes foreign names with improved matching)
+export const searchCardsByName = async (name, page = 1, pageSize = 100, includeForeign = true) => {
   try {
     const response = await mtgApiClient.get('/cards', {
       params: {
@@ -123,18 +161,114 @@ export const searchCardsByName = async (name, page = 1, pageSize = 100) => {
       }
     })
     
+    let allCards = response.data.cards || []
+    const totalCount = parseInt(response.headers['total-count'] || '0')
+    
+    // Sort results to prioritize exact matches
+    const sortedCards = allCards.sort((a, b) => {
+      const searchTerm = name.toLowerCase()
+      
+      // Check for exact English name match
+      const aExactEnglish = a.name && a.name.toLowerCase() === searchTerm
+      const bExactEnglish = b.name && b.name.toLowerCase() === searchTerm
+      
+      if (aExactEnglish && !bExactEnglish) return -1
+      if (!aExactEnglish && bExactEnglish) return 1
+      
+      // Check for exact foreign name match
+      const aExactForeign = a.foreignNames && a.foreignNames.some(fn => 
+        fn.name && fn.name.toLowerCase() === searchTerm
+      )
+      const bExactForeign = b.foreignNames && b.foreignNames.some(fn => 
+        fn.name && fn.name.toLowerCase() === searchTerm
+      )
+      
+      if (aExactForeign && !bExactForeign) return -1
+      if (!aExactForeign && bExactForeign) return 1
+      
+      // Check for English name starting with search term
+      const aStartsEnglish = a.name && a.name.toLowerCase().startsWith(searchTerm)
+      const bStartsEnglish = b.name && b.name.toLowerCase().startsWith(searchTerm)
+      
+      if (aStartsEnglish && !bStartsEnglish) return -1
+      if (!aStartsEnglish && bStartsEnglish) return 1
+      
+      // Default to alphabetical order
+      return (a.name || '').localeCompare(b.name || '')
+    })
+    
     // Process cards to enhance image data
-    const processedCards = (response.data.cards || []).map(processCardData)
+    const processedCards = sortedCards.map(processCardData)
     
     return {
       cards: processedCards,
-      totalCount: parseInt(response.headers['total-count'] || '0'),
+      totalCount: totalCount,
       currentPage: page,
       pageSize
     }
   } catch (error) {
     console.error('Error searching cards by name:', error)
     throw error
+  }
+}
+
+// Search cards by language and name
+export const searchCardsByLanguage = async (name, language = 'English', page = 1, pageSize = 100) => {
+  try {
+    const params = {
+      page,
+      pageSize
+    }
+    
+    // Add name parameter
+    if (name) {
+      params.name = name
+    }
+    
+    // Add language parameter if not English
+    if (language && language !== 'English') {
+      params.language = language
+    }
+    
+    const response = await mtgApiClient.get('/cards', { params })
+    
+    let cards = response.data.cards || []
+    
+    // If we specified a language other than English, filter results to ensure they actually have that language
+    if (language && language !== 'English' && name) {
+      cards = cards.filter(card => {
+        // Check if card has foreign names with the specified language
+        if (!card.foreignNames || !Array.isArray(card.foreignNames)) {
+          return false
+        }
+        
+        return card.foreignNames.some(foreign => {
+          const hasMatchingLanguage = foreign.language === language
+          const hasMatchingName = foreign.name && 
+            foreign.name.toLowerCase().includes(name.toLowerCase())
+          return hasMatchingLanguage && hasMatchingName
+        })
+      })
+    }
+    
+    // Process cards to enhance image data
+    const processedCards = cards.map(processCardData)
+    
+    return {
+      cards: processedCards,
+      totalCount: parseInt(response.headers['total-count'] || cards.length.toString()),
+      currentPage: page,
+      pageSize
+    }
+  } catch (error) {
+    console.error('Error searching cards by language:', error)
+    // Return empty result instead of throwing to allow fallback searches
+    return {
+      cards: [],
+      totalCount: 0,
+      currentPage: page,
+      pageSize
+    }
   }
 }
 
@@ -149,26 +283,30 @@ export const getCardById = async (id) => {
   }
 }
 
-// Get all versions of a card by name
+// Get all versions of a card by name (including foreign names)
 export const getAllVersionsOfCard = async (name) => {
   try {
-    // First search to get all cards with this name
-    const response = await mtgApiClient.get('/cards', {
-      params: {
-        name,
-        pageSize: 100 // Get up to 100 versions
+    // Search by both English and foreign names
+    const searchResults = await searchCardsByName(name, 1, 100, true)
+    
+    // Filter to exact matches (English name or any foreign name)
+    const exactMatches = searchResults.cards.filter(card => {
+      // Check English name
+      if (card.name.toLowerCase() === name.toLowerCase()) {
+        return true
       }
+      
+      // Check foreign names
+      if (card.foreignNames && Array.isArray(card.foreignNames)) {
+        return card.foreignNames.some(foreign => 
+          foreign.name && foreign.name.toLowerCase() === name.toLowerCase()
+        )
+      }
+      
+      return false
     })
     
-    const cards = response.data.cards || []
-    
-    // Filter to exact name matches (MTG API does partial matching)
-    const exactMatches = cards.filter(card => 
-      card.name.toLowerCase() === name.toLowerCase()
-    )
-    
-    // Process cards to enhance image data
-    return exactMatches.map(processCardData)
+    return exactMatches
   } catch (error) {
     console.error('Error fetching all versions of card:', error)
     throw error
@@ -185,6 +323,7 @@ export const searchCardsWithFilters = async (filters = {}) => {
 
     // Add various filters
     if (filters.name) params.name = filters.name
+    if (filters.foreignName) params.foreignName = filters.foreignName
     if (filters.set) params.set = filters.set
     if (filters.colors && filters.colors.length > 0) {
       params.colors = filters.colors.join(',')

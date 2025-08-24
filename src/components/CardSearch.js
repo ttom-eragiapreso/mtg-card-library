@@ -16,6 +16,8 @@ export default function CardSearch({
   const [error, setError] = useState('')
   const [selectedVersions, setSelectedVersions] = useState([])
   const [showVersions, setShowVersions] = useState(false)
+  const [exactSearch, setExactSearch] = useState(false)
+  const [selectedLanguage, setSelectedLanguage] = useState('English')
 
   const searchCards = async (term) => {
     if (!term.trim()) {
@@ -27,7 +29,19 @@ export default function CardSearch({
     setError('')
 
     try {
-      const response = await fetch(`/api/cards/search?name=${encodeURIComponent(term)}`)
+      let endpoint, queryParams
+      
+      if (selectedLanguage === 'English') {
+        // Use existing search endpoints for English
+        endpoint = exactSearch ? 'exact-search' : 'search'
+        queryParams = `name=${encodeURIComponent(term)}`
+      } else {
+        // Use language search endpoint for other languages
+        endpoint = 'language-search'
+        queryParams = `name=${encodeURIComponent(term)}&language=${encodeURIComponent(selectedLanguage)}`
+      }
+      
+      const response = await fetch(`/api/cards/${endpoint}?${queryParams}`)
       const data = await response.json()
 
       if (!response.ok) {
@@ -79,7 +93,7 @@ export default function CardSearch({
     }, 300) // Debounce search
 
     return () => clearTimeout(timeoutId)
-  }, [searchTerm])
+  }, [searchTerm, exactSearch, selectedLanguage])
 
   // Group cards by name to show unique cards first
   const groupedResults = searchResults.reduce((acc, card) => {
@@ -133,6 +147,59 @@ export default function CardSearch({
                 <XMarkIcon className="w-5 h-5" />
               </button>
             )}
+          </div>
+          
+          {/* Search Options */}
+          <div className="mt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-6">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={exactSearch}
+                    onChange={(e) => setExactSearch(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    disabled={selectedLanguage !== 'English'}
+                  />
+                  <span className={`text-sm ${selectedLanguage !== 'English' ? 'text-gray-400' : 'text-gray-700'}`}>
+                    Exact name matching only
+                  </span>
+                </label>
+                
+                <div className="flex items-center space-x-2">
+                  <label className="text-sm text-gray-700 font-medium">
+                    Language:
+                  </label>
+                  <select
+                    value={selectedLanguage}
+                    onChange={(e) => setSelectedLanguage(e.target.value)}
+                    className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+                  >
+                    <option value="English">English</option>
+                    <option value="Spanish">Spanish</option>
+                    <option value="French">French</option>
+                    <option value="German">German</option>
+                    <option value="Italian">Italian</option>
+                    <option value="Portuguese">Portuguese</option>
+                    <option value="Japanese">Japanese</option>
+                    <option value="Chinese Simplified">Chinese Simplified</option>
+                    <option value="Chinese Traditional">Chinese Traditional</option>
+                    <option value="Korean">Korean</option>
+                    <option value="Russian">Russian</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <div className="text-xs text-gray-500">
+              {selectedLanguage === 'English' ? (
+                exactSearch ? 
+                  'Searching for exact card names (includes foreign names)' : 
+                  'Searching with partial name matching (includes foreign names)'
+              ) : (
+                `Searching for cards with ${selectedLanguage} foreign names`
+              )}
+            </div>
           </div>
         </div>
         

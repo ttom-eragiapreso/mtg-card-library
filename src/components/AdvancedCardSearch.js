@@ -20,6 +20,7 @@ export default function AdvancedCardSearch({
 }) {
   const [filters, setFilters] = useState({
     name: '',
+    foreignName: '',
     colors: [],
     types: [],
     subtypes: [],
@@ -45,7 +46,7 @@ export default function AdvancedCardSearch({
 
   const searchCards = async () => {
     // Don't search if no meaningful filters are set
-    if (!filters.name && !filters.colors.length && !filters.types.length && 
+    if (!filters.name && !filters.foreignName && !filters.colors.length && !filters.types.length && 
         !filters.subtypes.length && !filters.rarity && !filters.minCmc && 
         !filters.maxCmc && !filters.set) {
       setSearchResults([])
@@ -113,6 +114,7 @@ export default function AdvancedCardSearch({
   const clearFilters = () => {
     setFilters({
       name: '',
+      foreignName: '',
       colors: [],
       types: [],
       subtypes: [],
@@ -162,15 +164,34 @@ export default function AdvancedCardSearch({
               {/* Card Name */}
               <div className="form-control">
                 <label className="label">
-                  <span className="label-text">Card Name</span>
+                  <span className="label-text">Card Name (English)</span>
                 </label>
                 <input
                   type="text"
-                  placeholder="Enter card name"
+                  placeholder="Enter English card name"
                   className="input input-bordered"
                   value={filters.name}
                   onChange={(e) => handleFilterChange('name', e.target.value)}
                 />
+              </div>
+
+              {/* Foreign Name */}
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Foreign Name</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter card name in any language"
+                  className="input input-bordered"
+                  value={filters.foreignName}
+                  onChange={(e) => handleFilterChange('foreignName', e.target.value)}
+                />
+                <label className="label">
+                  <span className="label-text-alt text-gray-500">
+                    Search by Italian, German, French, Spanish, Japanese, etc.
+                  </span>
+                </label>
               </div>
 
               {/* Colors */}

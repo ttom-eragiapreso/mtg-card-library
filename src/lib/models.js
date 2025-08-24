@@ -91,6 +91,17 @@ export const cardSchema = {
   text: String, // card rules text
   flavorText: String, // flavor text
   
+  // Foreign name translations
+  foreignNames: [{
+    name: String,
+    text: String,
+    type: String,
+    flavor: String,
+    imageUrl: String,
+    language: String,
+    multiverseid: Number
+  }],
+  
   // Physical characteristics
   power: String,
   toughness: String,

@@ -275,13 +275,41 @@ export async function getUserCollection(filters = {}) {
         }
         
         if (!card && entry.cardId) {
-          card = await cardsCollection.findOne({ _id: entry.cardId })
+          // Try to find by cardId (could be ObjectId string or original API ID)
+          try {
+            // First try as ObjectId
+            const { ObjectId } = require('mongodb')
+            if (ObjectId.isValid(entry.cardId)) {
+              card = await cardsCollection.findOne({ _id: new ObjectId(entry.cardId) })
+            }
+            // If not found, try as original API ID
+            if (!card) {
+              card = await cardsCollection.findOne({ id: entry.cardId })
+            }
+          } catch (error) {
+            // If ObjectId conversion fails, try as string ID
+            card = await cardsCollection.findOne({ id: entry.cardId })
+          }
         }
 
-        return {
+        // Serialize ObjectIds and Dates to strings for client components
+        const serializedEntry = {
           ...entry,
-          card: card || null
+          _id: entry._id.toString(),
+          cardId: entry.cardId?.toString() || entry.cardId,
+          acquiredDate: entry.acquiredDate ? entry.acquiredDate.toISOString() : null,
+          createdAt: entry.createdAt ? entry.createdAt.toISOString() : null,
+          updatedAt: entry.updatedAt ? entry.updatedAt.toISOString() : null,
+          card: card ? {
+            ...card,
+            _id: card._id.toString(),
+            createdAt: card.createdAt ? card.createdAt.toISOString() : null,
+            updatedAt: card.updatedAt ? card.updatedAt.toISOString() : null,
+            lastSyncedAt: card.lastSyncedAt ? card.lastSyncedAt.toISOString() : null
+          } : null
         }
+
+        return serializedEntry
       })
     )
 

@@ -311,6 +311,30 @@ export default function MTGCard({
             {card.multiverseid && ` • Multiverse ID: ${card.multiverseid}`}
           </div>
         )}
+
+        {/* Foreign Names */}
+        {card.foreignNames && card.foreignNames.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-gray-100">
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">Other Languages:</h4>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {card.foreignNames.slice(0, 6).map((foreign, index) => (
+                <div key={index} className="flex justify-between">
+                  <span className="font-medium text-gray-600">
+                    {foreign.language}:
+                  </span>
+                  <span className="text-gray-800 truncate ml-1" title={foreign.name}>
+                    {foreign.name}
+                  </span>
+                </div>
+              ))}
+              {card.foreignNames.length > 6 && (
+                <div className="col-span-2 text-center text-gray-500 italic">
+                  +{card.foreignNames.length - 6} more languages
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Debug: Test Modal Button */}

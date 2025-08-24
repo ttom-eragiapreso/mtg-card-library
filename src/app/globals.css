@@ -62,10 +62,18 @@ body {
   @apply bg-red-600 text-white border-0 hover:bg-red-700 !important;
 }
 
-/* Input styling improvements */
+/* Input and Select styling improvements */
 .input,
-.input-bordered {
+.input-bordered,
+select,
+.select,
+.select-bordered {
   @apply bg-white text-gray-900 border-gray-300 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 !important;
+}
+
+/* Ensure select options have proper contrast */
+select option {
+  @apply bg-white text-gray-900 !important;
 }
 
 /* Alert styling improvements */
