@@ -4,14 +4,10 @@ import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { redirect } from 'next/navigation'
 import Navigation from '@/components/Navigation'
-import MTGCard from '@/components/MTGCard'
+import CollectionCard from '@/components/CollectionCard'
 import { getUserCollection, removeCardFromCollection } from '@/lib/collection-actions'
 import { 
   MagnifyingGlassIcon, 
-  FunnelIcon, 
-  ChartBarIcon,
-  TrashIcon,
-  EyeIcon,
   Squares2X2Icon,
   ListBulletIcon
 } from '@heroicons/react/24/outline'
@@ -311,36 +307,12 @@ export default function CollectionPage() {
               : 'grid-cols-1'
           }`}>
             {filteredCollection.map((item) => (
-              <div key={item._id} className="relative group">
-                <MTGCard
-                  card={item.card}
-                  variant={viewMode === 'list' ? 'compact' : 'default'}
-                  showAddButton={false}
-                />
-                
-                {/* Collection Info Overlay */}
-                <div className="absolute top-2 right-2 bg-white rounded-lg shadow-md p-2 opacity-90">
-                  <div className="text-xs text-gray-600">
-                    Qty: {item.quantity || 1}
-                  </div>
-                  {item.condition && (
-                    <div className="text-xs text-gray-600">
-                      {item.condition}
-                    </div>
-                  )}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    className="btn btn-sm btn-error"
-                    onClick={() => handleRemoveCard(item)}
-                    title="Remove from collection"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
+              <CollectionCard
+                key={item._id}
+                collectionItem={item}
+                onRemove={handleRemoveCard}
+                viewMode={viewMode}
+              />
             ))}
           </div>
         )}
