@@ -204,69 +204,73 @@ export default function CollectionPage() {
         </div>
 
         {/* Filters and Controls */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Search */}
             <div className="relative">
               <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search collection..."
-                className="input input-bordered w-full pl-10"
+                className="w-full pl-10 pr-4 py-3 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
 
             {/* Filter by Type */}
-            <select
-              className="select select-bordered"
-              value={filterBy}
-              onChange={(e) => setFilterBy(e.target.value)}
-            >
-              <option value="all">All Types</option>
-              <option value="creature">Creatures</option>
-              <option value="instant">Instants</option>
-              <option value="sorcery">Sorceries</option>
-              <option value="artifact">Artifacts</option>
-              <option value="enchantment">Enchantments</option>
-              <option value="planeswalker">Planeswalkers</option>
-              <option value="land">Lands</option>
-            </select>
+            <div>
+              <select
+                className="w-full px-4 py-3 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white appearance-none cursor-pointer"
+                value={filterBy}
+                onChange={(e) => setFilterBy(e.target.value)}
+              >
+                <option value="all">All Types</option>
+                <option value="creature">Creatures</option>
+                <option value="instant">Instants</option>
+                <option value="sorcery">Sorceries</option>
+                <option value="artifact">Artifacts</option>
+                <option value="enchantment">Enchantments</option>
+                <option value="planeswalker">Planeswalkers</option>
+                <option value="land">Lands</option>
+              </select>
+            </div>
 
             {/* Sort */}
-            <select
-              className="select select-bordered"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-            >
-              <option value="dateAdded">Date Added</option>
-              <option value="name">Name</option>
-              <option value="set">Set</option>
-              <option value="rarity">Rarity</option>
-            </select>
+            <div>
+              <select
+                className="w-full px-4 py-3 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white appearance-none cursor-pointer"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="dateAdded">Date Added</option>
+                <option value="name">Name</option>
+                <option value="set">Set</option>
+                <option value="rarity">Rarity</option>
+              </select>
+            </div>
 
             {/* View Mode */}
-            <div className="flex bg-gray-100 rounded-lg p-1">
+            <div className="flex bg-gray-100 rounded-xl p-2 border border-gray-200">
               <button
-                className={`flex-1 px-3 py-2 rounded-md transition-colors ${
+                className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center ${
                   viewMode === 'grid' 
-                    ? 'bg-white shadow-sm' 
-                    : 'hover:bg-gray-200'
+                    ? 'bg-white shadow-md text-blue-600 border border-blue-100' 
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
                 }`}
                 onClick={() => setViewMode('grid')}
               >
-                <Squares2X2Icon className="w-5 h-5 mx-auto" />
+                <Squares2X2Icon className="w-5 h-5" />
               </button>
               <button
-                className={`flex-1 px-3 py-2 rounded-md transition-colors ${
+                className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center ${
                   viewMode === 'list' 
-                    ? 'bg-white shadow-sm' 
-                    : 'hover:bg-gray-200'
+                    ? 'bg-white shadow-md text-blue-600 border border-blue-100' 
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
                 }`}
                 onClick={() => setViewMode('list')}
               >
-                <ListBulletIcon className="w-5 h-5 mx-auto" />
+                <ListBulletIcon className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -293,8 +297,9 @@ export default function CollectionPage() {
             </p>
             <a
               href="/search"
-              className="btn btn-primary"
+              className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all duration-200"
             >
+              <MagnifyingGlassIcon className="w-5 h-5 mr-2" />
               Search for Cards
             </a>
           </div>
