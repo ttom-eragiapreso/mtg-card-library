@@ -13,8 +13,12 @@ out/
 build/
 dist/
 
-# Environment files
-.env*
+# Environment files (exclude all except .env.local which Next.js needs)
+.env
+.env.development
+.env.test
+.env.production
+!.env.local
 
 # OS generated files
 .DS_Store
