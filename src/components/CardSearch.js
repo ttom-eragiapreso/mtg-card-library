@@ -119,7 +119,7 @@ export default function CardSearch({
               <input
                 type="text"
                 placeholder="Search for Magic cards by name..."
-                className="w-full px-4 py-3 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-lg"
+                className="input input-bordered w-full text-lg"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -157,7 +157,7 @@ export default function CardSearch({
               <select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value)}
-                className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+                className="select select-bordered select-sm"
               >
                 <option value="English">English</option>
                 <option value="Spanish">Spanish</option>

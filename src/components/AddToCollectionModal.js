@@ -118,7 +118,7 @@ export default function AddToCollectionModal({
                   max="99"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  className="input input-bordered w-full"
                 />
               </div>
               
@@ -146,7 +146,7 @@ export default function AddToCollectionModal({
               <select
                 value={condition}
                 onChange={(e) => setCondition(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+                className="select select-bordered w-full"
               >
                 {conditions.map(cond => (
                   <option key={cond.value} value={cond.value}>
@@ -164,7 +164,7 @@ export default function AddToCollectionModal({
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+                className="select select-bordered w-full"
               >
                 <option value="English">English</option>
                 <option value="Spanish">Spanish</option>
@@ -194,7 +194,7 @@ export default function AddToCollectionModal({
                   placeholder="0.00"
                   value={acquiredPrice}
                   onChange={(e) => setAcquiredPrice(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  className="input input-bordered w-full pl-8"
                 />
               </div>
             </div>
@@ -209,7 +209,7 @@ export default function AddToCollectionModal({
                 placeholder="Add any notes about this card..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
+                className="textarea textarea-bordered w-full resize-none"
               />
             </div>
           </div>
