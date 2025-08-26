@@ -12,19 +12,11 @@ export default async function RootLayout({ children }) {
   const session = await getServerSession(authOptions)
   
   return (
-    <html lang="en" data-theme="fantasy" className="fantasy">
-      <body className="antialiased fantasy" style={{ colorScheme: 'light' }}>
+    <html lang="en" data-theme="fantasy">
+      <body className="antialiased">
         <Providers session={session}>
           {children}
         </Providers>
-        <script dangerouslySetInnerHTML={{
-          __html: `
-            // Force theme consistency
-            document.documentElement.setAttribute('data-theme', 'fantasy');
-            document.documentElement.className = 'fantasy';
-            document.body.className = 'antialiased fantasy';
-          `
-        }} />
       </body>
     </html>
   );
