@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import { XMarkIcon, SparklesIcon } from '@heroicons/react/24/outline'
+import Input from './ui/Input'
+import Select from './ui/Select'
+import Textarea from './ui/Textarea'
 
 export default function AddToCollectionModal({ 
   card, 
@@ -112,13 +115,13 @@ export default function AddToCollectionModal({
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Quantity
                 </label>
-                <input
+                <Input
                   type="number"
                   min="1"
                   max="99"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
-                  className="input input-bordered w-full"
+                  className="w-full"
                 />
               </div>
               
@@ -143,17 +146,17 @@ export default function AddToCollectionModal({
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Condition
               </label>
-              <select
+              <Select
                 value={condition}
                 onChange={(e) => setCondition(e.target.value)}
-                className="select select-bordered w-full"
+                className="w-full"
               >
                 {conditions.map(cond => (
                   <option key={cond.value} value={cond.value}>
                     {cond.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             {/* Language */}
@@ -161,10 +164,10 @@ export default function AddToCollectionModal({
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Language
               </label>
-              <select
+              <Select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
-                className="select select-bordered w-full"
+                className="w-full"
               >
                 <option value="English">English</option>
                 <option value="Spanish">Spanish</option>
@@ -177,7 +180,7 @@ export default function AddToCollectionModal({
                 <option value="Chinese Traditional">Chinese Traditional</option>
                 <option value="Korean">Korean</option>
                 <option value="Russian">Russian</option>
-              </select>
+              </Select>
             </div>
 
             {/* Acquired Price */}
@@ -186,15 +189,15 @@ export default function AddToCollectionModal({
                 Acquired Price (Optional)
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                <input
+                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 z-10">$</span>
+                <Input
                   type="number"
                   step="0.01"
                   min="0"
                   placeholder="0.00"
                   value={acquiredPrice}
                   onChange={(e) => setAcquiredPrice(e.target.value)}
-                  className="input input-bordered w-full pl-8"
+                  className="w-full pl-8"
                 />
               </div>
             </div>
@@ -204,12 +207,12 @@ export default function AddToCollectionModal({
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Notes (Optional)
               </label>
-              <textarea
+              <Textarea
                 rows="3"
                 placeholder="Add any notes about this card..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="textarea textarea-bordered w-full resize-none"
+                className="w-full resize-none"
               />
             </div>
           </div>

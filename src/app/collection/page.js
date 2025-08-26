@@ -5,6 +5,8 @@ import { useSession } from 'next-auth/react'
 import { redirect } from 'next/navigation'
 import Navigation from '@/components/Navigation'
 import CollectionCard from '@/components/CollectionCard'
+import Input from '@/components/ui/Input'
+import Select from '@/components/ui/Select'
 import { getUserCollection, removeCardFromCollection } from '@/lib/collection-actions'
 import { 
   MagnifyingGlassIcon, 
@@ -208,11 +210,11 @@ export default function CollectionPage() {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Search */}
             <div className="relative">
-              <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
+              <Input
                 type="text"
                 placeholder="Search collection..."
-                className="w-full pl-10 pr-4 py-3 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                className="w-full"
+                leftIcon={MagnifyingGlassIcon}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -220,8 +222,8 @@ export default function CollectionPage() {
 
             {/* Filter by Type */}
             <div>
-              <select
-                className="w-full px-4 py-3 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white appearance-none cursor-pointer"
+              <Select
+                className="w-full"
                 value={filterBy}
                 onChange={(e) => setFilterBy(e.target.value)}
               >
@@ -233,13 +235,13 @@ export default function CollectionPage() {
                 <option value="enchantment">Enchantments</option>
                 <option value="planeswalker">Planeswalkers</option>
                 <option value="land">Lands</option>
-              </select>
+              </Select>
             </div>
 
             {/* Sort */}
             <div>
-              <select
-                className="w-full px-4 py-3 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white appearance-none cursor-pointer"
+              <Select
+                className="w-full"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
               >
@@ -247,7 +249,7 @@ export default function CollectionPage() {
                 <option value="name">Name</option>
                 <option value="set">Set</option>
                 <option value="rarity">Rarity</option>
-              </select>
+              </Select>
             </div>
 
             {/* View Mode */}

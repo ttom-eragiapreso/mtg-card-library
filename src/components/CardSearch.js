@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import MTGCard from './MTGCard'
+import Input from './ui/Input'
+import Select from './ui/Select'
 
 export default function CardSearch({ 
   onAddToCollection,
@@ -116,10 +118,10 @@ export default function CardSearch({
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
           <div className="flex items-center space-x-3">
             <div className="flex-1 relative">
-              <input
+              <Input
                 type="text"
                 placeholder="Search for Magic cards by name..."
-                className="input input-bordered w-full text-lg"
+                className="w-full text-lg"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -154,10 +156,10 @@ export default function CardSearch({
               <label className="text-sm text-gray-700 font-medium">
                 Language:
               </label>
-              <select
+              <Select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value)}
-                className="select select-bordered select-sm"
+                size="sm"
               >
                 <option value="English">English</option>
                 <option value="Spanish">Spanish</option>
@@ -170,7 +172,7 @@ export default function CardSearch({
                 <option value="Chinese Traditional">Chinese Traditional</option>
                 <option value="Korean">Korean</option>
                 <option value="Russian">Russian</option>
-              </select>
+              </Select>
             </div>
           </div>
         </div>
