@@ -18,8 +18,12 @@ export default function SearchPage() {
   // Redirect to sign-in if not authenticated
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="loading loading-spinner loading-lg"></div>
+      <div className="min-h-screen bg-base-200 flex items-center justify-center">
+        <div className="hero">
+          <div className="hero-content text-center">
+            <div className="loading loading-spinner loading-lg text-primary"></div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -66,31 +70,36 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-base-200">
       <Navigation />
       
-      {/* Notification */}
+      {/* Notification Toast */}
       {notification && (
-        <div className="fixed top-20 right-4 z-50 animate-in slide-in-from-right duration-300">
-          <div className={`px-6 py-4 rounded-xl shadow-lg font-medium text-white ${
+        <div className="toast toast-top toast-end z-50">
+          <div className={`alert ${
             notification.type === 'success' 
-              ? 'bg-green-600' 
-              : 'bg-red-600'
-          }`}>
-            {notification.message}
+              ? 'alert-success' 
+              : 'alert-error'
+          } shadow-lg`}>
+            <span>{notification.message}</span>
           </div>
         </div>
       )}
       
-      <div className="max-w-7xl mx-auto px-4 py-12">
+      <div className="container mx-auto px-4 py-12">
         {/* Page Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            🔍 Search for Cards
-          </h1>
-          <p className="text-xl text-gray-700 mb-8 max-w-2xl mx-auto">
-            Find Magic: The Gathering cards by name, including foreign language support
-          </p>
+        <div className="hero bg-base-100 rounded-box mb-8">
+          <div className="hero-content text-center py-12">
+            <div className="max-w-2xl">
+              <div className="text-6xl mb-4">🔍</div>
+              <h1 className="text-5xl font-bold text-base-content mb-4">
+                Search for Cards
+              </h1>
+              <p className="text-xl text-base-content/70">
+                Find Magic: The Gathering cards by name, including foreign language support
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Search Interface */}
@@ -100,7 +109,6 @@ export default function SearchPage() {
             className="w-full"
           />
         </div>
-
       </div>
       
       {/* Add to Collection Modal */}

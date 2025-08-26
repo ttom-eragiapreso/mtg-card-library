@@ -6,6 +6,9 @@ module.exports = {
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  theme: {
+    extend: {},
+  },
   plugins: [require("daisyui")],
   daisyui: {
     themes: ["fantasy"], // Use only fantasy theme for consistency
@@ -14,7 +17,7 @@ module.exports = {
     styled: true,
     utils: true,
     prefix: "",
-    logs: false,
+    logs: false, // Disable logs
     themeRoot: ":root",
   },
 };
