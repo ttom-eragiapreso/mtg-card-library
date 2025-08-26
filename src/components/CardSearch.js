@@ -115,7 +115,7 @@ export default function CardSearch({
     <div className={`w-full ${className}`}>
       {/* Search Input */}
       <div className="w-full">
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+        <div className="card bg-base-100 shadow-lg p-6">
           <div className="flex items-center space-x-3">
             <div className="flex-1 relative">
               <Input
@@ -127,18 +127,18 @@ export default function CardSearch({
               />
             </div>
             <button 
-              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all duration-200 disabled:opacity-50"
+              className="btn btn-primary"
               disabled={isSearching}
             >
               {isSearching ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <div className="loading loading-spinner loading-sm"></div>
               ) : (
                 <MagnifyingGlassIcon className="w-5 h-5" />
               )}
             </button>
             {searchTerm && (
               <button
-                className="px-4 py-3 text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="btn btn-ghost btn-square"
                 onClick={() => {
                   setSearchTerm('')
                   setSearchResults([])
@@ -153,7 +153,7 @@ export default function CardSearch({
           {/* Search Options */}
           <div className="mt-4">
             <div className="flex items-center space-x-2">
-              <label className="text-sm text-gray-700 font-medium">
+              <label className="text-sm font-medium">
                 Language:
               </label>
               <Select
@@ -178,7 +178,7 @@ export default function CardSearch({
         </div>
         
         {error && (
-          <div className="mt-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+          <div className="alert alert-error mt-4">
             <span className="font-medium">{error}</span>
           </div>
         )}

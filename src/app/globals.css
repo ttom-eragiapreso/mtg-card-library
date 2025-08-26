@@ -2,64 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* Let DaisyUI handle all theming - minimal overrides only */
 body {
-  color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
-}
-
-/* Global contrast improvements - override poor DaisyUI defaults */
-.text-base-content\/60,
-.text-base-content\/70,
-.text-base-content\/80 {
-  @apply text-gray-700 !important;
-}
-
-.text-base-content\/50 {
-  @apply text-gray-600 !important;
-}
-
-.text-base-content\/40 {
-  @apply text-gray-500 !important;
-}
-
-/* Ensure modal and card backgrounds are always white with dark text */
-.modal-box,
-.card,
-.card-body {
-  @apply bg-white text-gray-900 !important;
-}
-
-/* Override DaisyUI button styles to ensure readability */
-.btn {
-  @apply font-semibold !important;
-}
-
-.btn-primary {
-  @apply bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0 !important;
-}
-
-.btn-secondary {
-  @apply bg-white text-gray-700 border-gray-300 hover:bg-gray-50 !important;
-}
-
-.btn-success {
-  @apply bg-green-600 text-white border-0 hover:bg-green-700 !important;
-}
-
-.btn-error {
-  @apply bg-red-600 text-white border-0 hover:bg-red-700 !important;
 }
 
 /* Only override select options for better contrast - let DaisyUI handle input styling */
@@ -97,11 +42,7 @@ select option {
   @apply bg-gray-100 text-gray-800 border-gray-300 !important;
 }
 
-/* Ensure all headings have proper contrast */
-h1, h2, h3, h4, h5, h6,
-.card-title {
-  @apply text-gray-900 !important;
-}
+/* Let DaisyUI theme handle heading colors */
 
 /* MTG Mana symbols styling */
 .mana-symbol {

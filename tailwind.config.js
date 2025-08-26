@@ -6,18 +6,10 @@ module.exports = {
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
-  theme: {
-    extend: {
-      colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
-      },
-    },
-  },
   plugins: [require("daisyui")],
   daisyui: {
-    themes: ["fantasy", "light", "dark", "wireframe"],
-    darkTheme: "dark",
+    themes: ["fantasy"], // Use only fantasy theme for consistency
+    darkTheme: false, // Disable dark mode switching
     base: true,
     styled: true,
     utils: true,
