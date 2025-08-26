@@ -40,7 +40,7 @@ export default function AdvancedCardSearch({
     'Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Planeswalker'
   ]
 
-  const searchCards = async () => {
+  const searchCards = async (abortController) => {
     // Don't search if no meaningful filters are set
     if (!filters.name && !filters.foreignName && !filters.colors.length && !filters.types.length && 
         !filters.subtypes.length && !filters.rarity && !filters.minCmc && 
@@ -65,15 +65,31 @@ export default function AdvancedCardSearch({
         }
       })
 
-      const response = await fetch(`/api/cards/advanced-search?${searchParams}`)
+      const response = await fetch(`/api/cards/advanced-search?${searchParams}`, {
+        signal: abortController?.signal
+      })
+      
+      // Check if request was aborted
+      if (abortController?.signal.aborted) {
+        return
+      }
+      
       const data = await response.json()
 
       if (!response.ok) {
         throw new Error(data.error || 'Search failed')
       }
 
-      setSearchResults(data.cards || [])
+      // Only update results if the request wasn't aborted
+      if (!abortController?.signal.aborted) {
+        setSearchResults(data.cards || [])
+      }
     } catch (error) {
+      // Ignore abort errors
+      if (error.name === 'AbortError') {
+        return
+      }
+      
       console.error('Advanced search error:', error)
       setError(error.message)
       setSearchResults([])
@@ -131,11 +147,21 @@ export default function AdvancedCardSearch({
   }
 
   useEffect(() => {
+    // Create AbortController for this search request
+    const abortController = typeof window !== 'undefined' && window.AbortController ? new window.AbortController() : null
+    
     const timeoutId = setTimeout(() => {
-      searchCards()
+      searchCards(abortController)
     }, 500) // Debounce search
 
-    return () => clearTimeout(timeoutId)
+    return () => {
+      // Cancel the timeout
+      clearTimeout(timeoutId)
+      // Abort any ongoing request
+      if (abortController) {
+        abortController.abort()
+      }
+    }
   }, [filters])
 
   return (

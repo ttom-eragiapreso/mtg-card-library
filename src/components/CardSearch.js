@@ -20,7 +20,7 @@ export default function CardSearch({
   const [showVersions, setShowVersions] = useState(false)
   const [selectedLanguage, setSelectedLanguage] = useState('English')
 
-  const searchCards = async (term) => {
+  const searchCards = async (term, abortController) => {
     if (!term.trim()) {
       setSearchResults([])
       return
@@ -42,15 +42,31 @@ export default function CardSearch({
         queryParams = `name=${encodeURIComponent(term)}&language=${encodeURIComponent(selectedLanguage)}`
       }
       
-      const response = await fetch(`/api/cards/${endpoint}?${queryParams}`)
+      const response = await fetch(`/api/cards/${endpoint}?${queryParams}`, {
+        signal: abortController?.signal
+      })
+      
+      // Check if request was aborted
+      if (abortController?.signal.aborted) {
+        return
+      }
+      
       const data = await response.json()
 
       if (!response.ok) {
         throw new Error(data.error || 'Search failed')
       }
 
-      setSearchResults(data.cards || [])
+      // Only update results if the request wasn't aborted
+      if (!abortController?.signal.aborted) {
+        setSearchResults(data.cards || [])
+      }
     } catch (error) {
+      // Ignore abort errors
+      if (error.name === 'AbortError') {
+        return
+      }
+      
       console.error('Search error:', error)
       setError(error.message)
       setSearchResults([])
@@ -89,11 +105,21 @@ export default function CardSearch({
   }
 
   useEffect(() => {
+    // Create AbortController for this search request
+    const abortController = typeof window !== 'undefined' && window.AbortController ? new window.AbortController() : null
+    
     const timeoutId = setTimeout(() => {
-      searchCards(searchTerm)
+      searchCards(searchTerm, abortController)
     }, 300) // Debounce search
 
-    return () => clearTimeout(timeoutId)
+    return () => {
+      // Cancel the timeout
+      clearTimeout(timeoutId)
+      // Abort any ongoing request
+      if (abortController) {
+        abortController.abort()
+      }
+    }
   }, [searchTerm, selectedLanguage])
 
   // Group cards by name to show unique cards first
