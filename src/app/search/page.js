@@ -86,16 +86,16 @@ export default function SearchPage() {
         </div>
       )}
       
-      <div className="container mx-auto px-4 py-12">
+      <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-12">
         {/* Page Header */}
-        <div className="hero bg-base-100 rounded-box mb-8">
-          <div className="hero-content text-center py-12">
-            <div className="max-w-2xl">
-              <div className="text-6xl mb-4">🔍</div>
-              <h1 className="text-5xl font-bold text-base-content mb-4">
+        <div className="hero bg-base-100 rounded-box mb-6 sm:mb-8">
+          <div className="hero-content text-center py-6 sm:py-12 px-4">
+            <div className="max-w-2xl w-full">
+              <div className="text-4xl sm:text-5xl md:text-6xl mb-3 sm:mb-4">🔍</div>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-base-content mb-3 sm:mb-4 leading-tight">
                 Search for Cards
               </h1>
-              <p className="text-xl text-base-content/70">
+              <p className="text-base sm:text-lg md:text-xl text-base-content/70 px-2">
                 Find Magic: The Gathering cards by name, including foreign language support
               </p>
             </div>

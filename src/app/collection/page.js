@@ -8,11 +8,7 @@ import CollectionCard from '@/components/CollectionCard'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import { getUserCollection, removeCardFromCollection } from '@/lib/collection-actions'
-import { 
-  MagnifyingGlassIcon, 
-  Squares2X2Icon,
-  ListBulletIcon
-} from '@heroicons/react/24/outline'
+import { MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline'
 
 export default function CollectionPage() {
   const { data: session, status } = useSession()
@@ -21,12 +17,12 @@ export default function CollectionPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [notification, setNotification] = useState(null)
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   
-  // Filters and view options
+  // Filters
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState('dateAdded') // dateAdded, name, set, rarity
   const [filterBy, setFilterBy] = useState('all') // all, creatures, spells, artifacts, etc.
-  const [viewMode, setViewMode] = useState('grid') // grid, list
   
   // Stats
   const [stats, setStats] = useState({
@@ -176,40 +172,37 @@ export default function CollectionPage() {
         </div>
       )}
       
-      <div className="max-w-7xl mx-auto px-4 py-12">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-12">
         {/* Page Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-6 sm:mb-8">
             📚 Your Collection
           </h1>
-          <p className="text-xl text-gray-700 mb-8 max-w-2xl mx-auto">
-            Manage and browse your Magic: The Gathering card collection
-          </p>
         </div>
 
         {/* Collection Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-md p-6 text-center">
-            <div className="text-3xl font-bold text-blue-600 mb-2">{stats.totalCards}</div>
-            <div className="text-gray-600">Total Cards</div>
+        <div className="grid grid-cols-3 gap-3 sm:gap-6 mb-6 sm:mb-8">
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-md p-3 sm:p-6 text-center">
+            <div className="text-lg sm:text-2xl md:text-3xl font-bold text-blue-600 mb-1 sm:mb-2">{stats.totalCards}</div>
+            <div className="text-xs sm:text-sm md:text-base text-gray-600">Total Cards</div>
           </div>
-          <div className="bg-white rounded-xl shadow-md p-6 text-center">
-            <div className="text-3xl font-bold text-purple-600 mb-2">{stats.uniqueCards}</div>
-            <div className="text-gray-600">Unique Cards</div>
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-md p-3 sm:p-6 text-center">
+            <div className="text-lg sm:text-2xl md:text-3xl font-bold text-purple-600 mb-1 sm:mb-2">{stats.uniqueCards}</div>
+            <div className="text-xs sm:text-sm md:text-base text-gray-600">Unique Cards</div>
           </div>
-          <div className="bg-white rounded-xl shadow-md p-6 text-center">
-            <div className="text-3xl font-bold text-green-600 mb-2">
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-md p-3 sm:p-6 text-center">
+            <div className="text-lg sm:text-2xl md:text-3xl font-bold text-green-600 mb-1 sm:mb-2">
               ${stats.totalValue.toFixed(2)}
             </div>
-            <div className="text-gray-600">Estimated Value</div>
+            <div className="text-xs sm:text-sm md:text-base text-gray-600">Estimated Value</div>
           </div>
         </div>
 
-        {/* Filters and Controls */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Search */}
-            <div className="relative">
+        {/* Search Bar */}
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-md border border-gray-200 p-3 sm:p-4 mb-4 sm:mb-6">
+          <div className="flex gap-3">
+            {/* Search Input */}
+            <div className="flex-1">
               <Input
                 type="text"
                 placeholder="Search collection..."
@@ -219,62 +212,15 @@ export default function CollectionPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-
-            {/* Filter by Type */}
-            <div>
-              <Select
-                className="w-full"
-                value={filterBy}
-                onChange={(e) => setFilterBy(e.target.value)}
-              >
-                <option value="all">All Types</option>
-                <option value="creature">Creatures</option>
-                <option value="instant">Instants</option>
-                <option value="sorcery">Sorceries</option>
-                <option value="artifact">Artifacts</option>
-                <option value="enchantment">Enchantments</option>
-                <option value="planeswalker">Planeswalkers</option>
-                <option value="land">Lands</option>
-              </Select>
-            </div>
-
-            {/* Sort */}
-            <div>
-              <Select
-                className="w-full"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-              >
-                <option value="dateAdded">Date Added</option>
-                <option value="name">Name</option>
-                <option value="set">Set</option>
-                <option value="rarity">Rarity</option>
-              </Select>
-            </div>
-
-            {/* View Mode */}
-            <div className="flex bg-gray-100 rounded-xl p-2 border border-gray-200">
-              <button
-                className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center ${
-                  viewMode === 'grid' 
-                    ? 'bg-white shadow-md text-blue-600 border border-blue-100' 
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                }`}
-                onClick={() => setViewMode('grid')}
-              >
-                <Squares2X2Icon className="w-5 h-5" />
-              </button>
-              <button
-                className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center ${
-                  viewMode === 'list' 
-                    ? 'bg-white shadow-md text-blue-600 border border-blue-100' 
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                }`}
-                onClick={() => setViewMode('list')}
-              >
-                <ListBulletIcon className="w-5 h-5" />
-              </button>
-            </div>
+            
+            {/* Advanced Filters Button */}
+            <button
+              onClick={() => setShowAdvancedFilters(true)}
+              className="flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200 border border-gray-300"
+            >
+              <FunnelIcon className="w-5 h-5" />
+              <span className="ml-2 hidden sm:inline">Filters</span>
+            </button>
           </div>
         </div>
 
@@ -307,19 +253,15 @@ export default function CollectionPage() {
           </div>
         )}
 
-        {/* Collection Grid/List */}
+        {/* Collection Grid */}
         {filteredCollection.length > 0 && (
-          <div className={`grid gap-4 ${
-            viewMode === 'grid' 
-              ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
-              : 'grid-cols-1'
-          }`}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredCollection.map((item) => (
               <CollectionCard
                 key={item._id}
                 collectionItem={item}
                 onRemove={handleRemoveCard}
-                viewMode={viewMode}
+                viewMode="grid"
               />
             ))}
           </div>
@@ -332,6 +274,85 @@ export default function CollectionPage() {
           </div>
         )}
       </div>
+
+      {/* Advanced Filters Modal */}
+      {showAdvancedFilters && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Advanced Filters</h2>
+                <button
+                  onClick={() => setShowAdvancedFilters(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Filter by Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Card Type
+                  </label>
+                  <Select
+                    className="w-full"
+                    value={filterBy}
+                    onChange={(e) => setFilterBy(e.target.value)}
+                  >
+                    <option value="all">All Types</option>
+                    <option value="creature">Creatures</option>
+                    <option value="instant">Instants</option>
+                    <option value="sorcery">Sorceries</option>
+                    <option value="artifact">Artifacts</option>
+                    <option value="enchantment">Enchantments</option>
+                    <option value="planeswalker">Planeswalkers</option>
+                    <option value="land">Lands</option>
+                  </Select>
+                </div>
+
+                {/* Sort By */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Sort By
+                  </label>
+                  <Select
+                    className="w-full"
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                  >
+                    <option value="dateAdded">Date Added</option>
+                    <option value="name">Name</option>
+                    <option value="set">Set</option>
+                    <option value="rarity">Rarity</option>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-8 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setFilterBy('all')
+                    setSortBy('dateAdded')
+                  }}
+                  className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
+                >
+                  Clear Filters
+                </button>
+                <button
+                  onClick={() => setShowAdvancedFilters(false)}
+                  className="flex-1 px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

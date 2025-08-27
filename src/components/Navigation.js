@@ -74,12 +74,12 @@ export default function Navigation() {
           </div>
           
           {/* Logo */}
-          <Link href="/" className="btn btn-ghost text-xl normal-case">
-            <span className="text-2xl">🎴</span>
-            <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent ml-2">
+          <Link href="/" className="btn btn-ghost text-lg sm:text-xl normal-case px-2 sm:px-4">
+            <span className="text-xl sm:text-2xl">🏄</span>
+            <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent ml-1 sm:ml-2">
               MTG
             </span>
-            <span className="text-base-content ml-1">Library</span>
+            <span className="text-base-content ml-1 hidden xs:inline">Library</span>
           </Link>
         </div>
         
@@ -169,12 +169,14 @@ export default function Navigation() {
               </ul>
             </div>
           ) : (
-            <div className="flex gap-2">
-              <Link href="/auth/signin" className="btn btn-ghost">
-                Sign In
+            <div className="flex gap-1 sm:gap-2">
+              <Link href="/auth/signin" className="btn btn-ghost btn-sm sm:btn-md">
+                <span className="hidden sm:inline">Sign In</span>
+                <span className="sm:hidden">Sign In</span>
               </Link>
-              <Link href="/auth/signin" className="btn btn-primary">
-                Get Started
+              <Link href="/auth/signin" className="btn btn-primary btn-sm sm:btn-md">
+                <span className="hidden xs:inline">Get Started</span>
+                <span className="xs:hidden">Start</span>
               </Link>
             </div>
           )}

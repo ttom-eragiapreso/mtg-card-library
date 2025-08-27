@@ -142,41 +142,46 @@ export default function CardSearch({
       {/* Search Input */}
       <div className="w-full">
         <div className="card card-compact bg-base-100 shadow-xl border border-base-200">
-          <div className="card-body">
+          <div className="card-body p-4 sm:p-6">
             <div className="form-control w-full">
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <div className="flex-1">
                   <Input
                     type="text"
                     placeholder="Search for Magic cards by name..."
-                    className="w-full input-lg"
+                    className="w-full input-md sm:input-lg"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     variant="bordered"
                   />
                 </div>
-                <button 
-                  className="btn btn-primary btn-lg"
-                  disabled={isSearching}
-                >
-                  {isSearching ? (
-                    <span className="loading loading-spinner loading-sm"></span>
-                  ) : (
-                    <MagnifyingGlassIcon className="w-5 h-5" />
-                  )}
-                </button>
-                {searchTerm && (
-                  <button
-                    className="btn btn-ghost btn-square btn-lg"
-                    onClick={() => {
-                      setSearchTerm('')
-                      setSearchResults([])
-                      setError('')
-                    }}
+                <div className="flex gap-2">
+                  <button 
+                    className="btn btn-primary btn-md sm:btn-lg flex-1 sm:flex-none"
+                    disabled={isSearching}
                   >
-                    <XMarkIcon className="w-5 h-5" />
+                    {isSearching ? (
+                      <span className="loading loading-spinner loading-sm"></span>
+                    ) : (
+                      <>
+                        <MagnifyingGlassIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <span className="sm:hidden">Search</span>
+                      </>
+                    )}
                   </button>
-                )}
+                  {searchTerm && (
+                    <button
+                      className="btn btn-ghost btn-square btn-md sm:btn-lg"
+                      onClick={() => {
+                        setSearchTerm('')
+                        setSearchResults([])
+                        setError('')
+                      }}
+                    >
+                      <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </button>
+                  )}
+                </div>
               </div>
               
               {/* Search Options */}
@@ -217,13 +222,13 @@ export default function CardSearch({
 
       {/* Versions Modal */}
       <div className={`modal ${showVersions ? 'modal-open' : ''}`}>
-        <div className="modal-box w-11/12 max-w-6xl h-fit max-h-[90vh]">
+        <div className="modal-box w-[95vw] sm:w-11/12 max-w-6xl h-fit max-h-[90vh] p-3 sm:p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-2xl font-bold text-base-content">
+            <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-base-content pr-2">
               All Versions of {selectedVersions[0]?.name}
             </h3>
             <button 
-              className="btn btn-sm btn-circle btn-ghost"
+              className="btn btn-sm btn-circle btn-ghost flex-shrink-0"
               onClick={() => setShowVersions(false)}
             >
               <XMarkIcon className="w-4 h-4" />
@@ -233,7 +238,7 @@ export default function CardSearch({
           <div className="divider"></div>
           
           <div className="overflow-y-auto max-h-[60vh]">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {selectedVersions.map((card) => (
                 <MTGCard
                   key={card.multiverseid || card.id}
@@ -248,7 +253,7 @@ export default function CardSearch({
           
           <div className="modal-action">
             <button 
-              className="btn btn-primary"
+              className="btn btn-primary w-full sm:w-auto"
               onClick={() => setShowVersions(false)}
             >
               Close
@@ -262,17 +267,17 @@ export default function CardSearch({
 
       {/* Search Results */}
       {searchResults.length > 0 && (
-        <div className="mt-8">
-          <div className="flex items-center gap-3 mb-6">
-            <h3 className="text-2xl font-bold text-base-content">
+        <div className="mt-6 sm:mt-8">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+            <h3 className="text-xl sm:text-2xl font-bold text-base-content">
               Search Results
             </h3>
-            <div className="badge badge-primary badge-lg">
+            <div className="badge badge-primary badge-md sm:badge-lg">
               {searchResults.length} cards
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {uniqueCards.map((card) => (
               <div key={card.name} className="relative">
                 <MTGCard
@@ -286,16 +291,16 @@ export default function CardSearch({
                 {/* Show all versions button */}
                 {groupedResults[card.name].length > 1 ? (
                   <button
-                    className="badge badge-info absolute top-3 right-3 hover:badge-info-focus transition-colors cursor-pointer"
+                    className="badge badge-info absolute top-2 sm:top-3 right-2 sm:right-3 hover:badge-info-focus transition-colors cursor-pointer text-xs"
                     onClick={() => showAllVersions(card.name)}
                   >
                     {groupedResults[card.name].length} versions
                   </button>
                 ) : (
                   /* Single version - show add button */
-                  <div className="absolute top-3 right-3">
+                  <div className="absolute top-2 sm:top-3 right-2 sm:right-3">
                     <button
-                      className={`btn btn-sm ${
+                      className={`btn btn-xs sm:btn-sm ${
                         isCardInCollection(card)
                           ? 'btn-success btn-disabled' 
                           : 'btn-primary'
@@ -304,9 +309,9 @@ export default function CardSearch({
                       disabled={isCardInCollection(card)}
                     >
                       {isCardInCollection(card) ? (
-                        <>✓ Added</>
+                        <>✓<span className="hidden sm:inline ml-1">Added</span></>
                       ) : (
-                        <>+ Add</>
+                        <>+<span className="hidden sm:inline ml-1">Add</span></>
                       )}
                     </button>
                   </div>
@@ -319,20 +324,20 @@ export default function CardSearch({
 
       {/* No Results */}
       {searchTerm && !isSearching && searchResults.length === 0 && !error && (
-        <div className="hero min-h-64 bg-base-100 rounded-box mt-8">
-          <div className="hero-content text-center">
-            <div className="max-w-md">
-              <div className="text-6xl mb-4 opacity-50">🔍</div>
-              <h2 className="text-2xl font-bold text-base-content mb-2">
+        <div className="hero min-h-48 sm:min-h-64 bg-base-100 rounded-box mt-6 sm:mt-8">
+          <div className="hero-content text-center px-4">
+            <div className="max-w-md w-full">
+              <div className="text-4xl sm:text-5xl md:text-6xl mb-3 sm:mb-4 opacity-50">🔍</div>
+              <h2 className="text-xl sm:text-2xl font-bold text-base-content mb-2">
                 No cards found
               </h2>
-              <p className="text-base-content/70 mb-4">
+              <p className="text-sm sm:text-base text-base-content/70 mb-4">
                 No results for "{searchTerm}" in {selectedLanguage}
               </p>
-              <div className="alert alert-info">
+              <div className="alert alert-info text-left">
                 <div className="flex-col items-start">
-                  <div className="font-semibold">Try:</div>
-                  <ul className="text-sm mt-1 text-left">
+                  <div className="font-semibold text-sm sm:text-base">Try:</div>
+                  <ul className="text-xs sm:text-sm mt-1">
                     <li>• Checking your spelling</li>
                     <li>• Using fewer words</li>
                     <li>• Trying a different language</li>
