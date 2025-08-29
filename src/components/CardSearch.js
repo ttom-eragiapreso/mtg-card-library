@@ -10,7 +10,9 @@ export default function CardSearch({
   onAddToCollection,
   userCollection = [],
   initialQuery = '',
-  className = ''
+  className = '',
+  onVersionsModalChange,
+  forceCloseVersionsModal = false
 }) {
   const [searchTerm, setSearchTerm] = useState(initialQuery)
   const [searchResults, setSearchResults] = useState([])
@@ -89,6 +91,10 @@ export default function CardSearch({
 
       setSelectedVersions(data.cards || [])
       setShowVersions(true)
+      // Notify parent component about versions modal state
+      if (onVersionsModalChange) {
+        onVersionsModalChange(true)
+      }
     } catch (error) {
       console.error('Versions fetch error:', error)
       setError(error.message)
@@ -121,6 +127,16 @@ export default function CardSearch({
       }
     }
   }, [searchTerm, selectedLanguage])
+
+  // Handle force close of versions modal
+  useEffect(() => {
+    if (forceCloseVersionsModal && showVersions) {
+      setShowVersions(false)
+      if (onVersionsModalChange) {
+        onVersionsModalChange(false)
+      }
+    }
+  }, [forceCloseVersionsModal, showVersions, onVersionsModalChange])
 
   // Group cards by name to show unique cards first
   const groupedResults = searchResults.reduce((acc, card) => {
@@ -229,7 +245,12 @@ export default function CardSearch({
             </h3>
             <button 
               className="btn btn-sm btn-circle btn-ghost flex-shrink-0"
-              onClick={() => setShowVersions(false)}
+              onClick={() => {
+                setShowVersions(false)
+                if (onVersionsModalChange) {
+                  onVersionsModalChange(false)
+                }
+              }}
             >
               <XMarkIcon className="w-4 h-4" />
             </button>
@@ -254,13 +275,23 @@ export default function CardSearch({
           <div className="modal-action">
             <button 
               className="btn btn-primary w-full sm:w-auto"
-              onClick={() => setShowVersions(false)}
+              onClick={() => {
+                setShowVersions(false)
+                if (onVersionsModalChange) {
+                  onVersionsModalChange(false)
+                }
+              }}
             >
               Close
             </button>
           </div>
         </div>
-        <div className="modal-backdrop" onClick={() => setShowVersions(false)}>
+        <div className="modal-backdrop" onClick={() => {
+          setShowVersions(false)
+          if (onVersionsModalChange) {
+            onVersionsModalChange(false)
+          }
+        }}>
           <button>close</button>
         </div>
       </div>

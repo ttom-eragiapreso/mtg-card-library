@@ -1,10 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { XMarkIcon, SparklesIcon } from '@heroicons/react/24/outline'
-import Input from './ui/Input'
-import Select from './ui/Select'
-import Textarea from './ui/Textarea'
 
 export default function AddToCollectionModal({ 
   card, 
@@ -13,31 +10,16 @@ export default function AddToCollectionModal({
   onConfirm, 
   isAdding = false 
 }) {
-  const [quantity, setQuantity] = useState(1)
-  const [condition, setCondition] = useState('near_mint')
   const [foil, setFoil] = useState(false)
-  const [language, setLanguage] = useState('English')
-  const [notes, setNotes] = useState('')
-  const [acquiredPrice, setAcquiredPrice] = useState('')
-
-  const conditions = [
-    { value: 'mint', label: 'Mint (M)' },
-    { value: 'near_mint', label: 'Near Mint (NM)' },
-    { value: 'excellent', label: 'Excellent (EX)' },
-    { value: 'good', label: 'Good (GD)' },
-    { value: 'light_played', label: 'Light Played (LP)' },
-    { value: 'played', label: 'Played (PL)' },
-    { value: 'poor', label: 'Poor (PR)' }
-  ]
 
   const handleConfirm = () => {
     const collectionData = {
-      quantity: parseInt(quantity),
-      condition,
+      quantity: 1,
+      condition: 'near_mint',
       foil,
-      language,
-      notes: notes.trim(),
-      acquiredPrice: acquiredPrice ? parseFloat(acquiredPrice) : undefined,
+      language: 'English',
+      notes: '',
+      acquiredPrice: undefined,
       acquiredDate: new Date()
     }
     
@@ -45,18 +27,20 @@ export default function AddToCollectionModal({
   }
 
   const handleReset = () => {
-    setQuantity(1)
-    setCondition('near_mint')
     setFoil(false)
-    setLanguage('English')
-    setNotes('')
-    setAcquiredPrice('')
   }
+
+  // Reset state when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      setFoil(false)
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 9998 }}>
       {/* Backdrop */}
       <div 
         className="fixed inset-0 bg-black/50 backdrop-blur-sm" 
@@ -64,7 +48,7 @@ export default function AddToCollectionModal({
       ></div>
       
       {/* Modal Content */}
-      <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h3 className="text-2xl font-bold text-gray-900">
             Add to Collection
@@ -82,7 +66,7 @@ export default function AddToCollectionModal({
           <div className="bg-gray-50 rounded-xl p-4 mb-6">
             <div className="flex items-start gap-4">
               <div className="w-16 h-20 bg-gray-200 rounded-lg overflow-hidden">
-                {card.imageUrl ? (
+                {card?.imageUrl ? (
                   <img
                     src={card.imageUrl}
                     alt={card.name}
@@ -95,126 +79,34 @@ export default function AddToCollectionModal({
                 )}
               </div>
               <div className="flex-1">
-                <h4 className="font-bold text-gray-900 text-lg mb-1">{card.name}</h4>
-                <p className="text-gray-700 text-sm mb-1">{card.type}</p>
+                <h4 className="font-bold text-gray-900 text-lg mb-1">{card?.name}</h4>
+                <p className="text-gray-700 text-sm mb-1">{card?.type}</p>
                 <div className="flex items-center gap-3 text-sm">
                   <span className="px-2 py-1 bg-white text-gray-800 rounded-md font-medium">
-                    {card.set}
+                    {card?.set}
                   </span>
-                  <span className="text-gray-600">{card.setName}</span>
+                  {card?.setName && (
+                    <span className="text-gray-600">{card.setName}</span>
+                  )}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Collection Details Form */}
-          <div className="space-y-6">
-            {/* Quantity and Foil Row */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Quantity
-                </label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="99"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  className="w-full"
-                />
-              </div>
-              
-              <div className="flex items-end">
-                <label className="flex items-center space-x-3 cursor-pointer bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-lg px-4 py-3 hover:from-yellow-100 hover:to-amber-100 transition-colors w-full">
-                  <input
-                    type="checkbox"
-                    checked={foil}
-                    onChange={(e) => setFoil(e.target.checked)}
-                    className="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500"
-                  />
-                  <SparklesIcon className={`w-5 h-5 ${foil ? 'text-yellow-600' : 'text-gray-400'}`} />
-                  <span className={`font-medium ${foil ? 'text-yellow-800' : 'text-gray-700'}`}>
-                    Foil
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            {/* Condition */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Condition
-              </label>
-              <Select
-                value={condition}
-                onChange={(e) => setCondition(e.target.value)}
-                className="w-full"
-              >
-                {conditions.map(cond => (
-                  <option key={cond.value} value={cond.value}>
-                    {cond.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
-
-            {/* Language */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Language
-              </label>
-              <Select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="w-full"
-              >
-                <option value="English">English</option>
-                <option value="Spanish">Spanish</option>
-                <option value="French">French</option>
-                <option value="German">German</option>
-                <option value="Italian">Italian</option>
-                <option value="Portuguese">Portuguese</option>
-                <option value="Japanese">Japanese</option>
-                <option value="Chinese Simplified">Chinese Simplified</option>
-                <option value="Chinese Traditional">Chinese Traditional</option>
-                <option value="Korean">Korean</option>
-                <option value="Russian">Russian</option>
-              </Select>
-            </div>
-
-            {/* Acquired Price */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Acquired Price (Optional)
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 z-10">$</span>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={acquiredPrice}
-                  onChange={(e) => setAcquiredPrice(e.target.value)}
-                  className="w-full pl-8"
-                />
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Notes (Optional)
-              </label>
-              <Textarea
-                rows="3"
-                placeholder="Add any notes about this card..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full resize-none"
+          {/* Foil Toggle */}
+          <div className="mb-6">
+            <label className="flex items-center justify-center space-x-3 cursor-pointer bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-lg px-6 py-4 hover:from-yellow-100 hover:to-amber-100 transition-colors">
+              <input
+                type="checkbox"
+                checked={foil}
+                onChange={(e) => setFoil(e.target.checked)}
+                className="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500 w-5 h-5"
               />
-            </div>
+              <SparklesIcon className={`w-6 h-6 ${foil ? 'text-yellow-600' : 'text-gray-400'}`} />
+              <span className={`font-semibold text-lg ${foil ? 'text-yellow-800' : 'text-gray-700'}`}>
+                Foil Version
+              </span>
+            </label>
           </div>
         </div>
         

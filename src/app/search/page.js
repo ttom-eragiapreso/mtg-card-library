@@ -14,6 +14,7 @@ export default function SearchPage() {
   const [selectedCard, setSelectedCard] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [isAddingToCollection, setIsAddingToCollection] = useState(false)
+  const [versionsModalOpen, setVersionsModalOpen] = useState(false)
 
   // Redirect to sign-in if not authenticated
   if (status === 'loading') {
@@ -106,6 +107,8 @@ export default function SearchPage() {
         <div className="max-w-6xl mx-auto">
           <CardSearch
             onAddToCollection={handleAddToCollection}
+            onVersionsModalChange={setVersionsModalOpen}
+            forceCloseVersionsModal={showAddModal}
             className="w-full"
           />
         </div>
