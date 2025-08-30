@@ -25,8 +25,8 @@ export default function Navigation() {
       {/* DaisyUI Navbar */}
       <div className="navbar bg-base-100 border-b border-base-200 sticky top-0 z-50 shadow-sm backdrop-blur-md">
         <div className="navbar-start">
-          {/* Mobile Drawer Toggle */}
-          <div className="dropdown lg:hidden">
+          {/* Mobile Drawer Toggle - Only for small screens */}
+          <div className="dropdown md:hidden">
             <div tabIndex={0} role="button" className="btn btn-ghost btn-circle">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -83,8 +83,8 @@ export default function Navigation() {
           </Link>
         </div>
         
-        {/* Desktop Navigation */}
-        <div className="navbar-center hidden lg:flex">
+        {/* Medium+ Screen Navigation */}
+        <div className="navbar-center hidden md:flex">
           {session && (
             <ul className="menu menu-horizontal px-1 gap-1">
               <li>
