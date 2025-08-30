@@ -69,6 +69,7 @@ export async function addCardToCollection(cardData, collectionData = {}) {
     }
 
     const userId = session.user.id
+    
     const cardsCollection = await getCardsCollection()
     const userCollectionsCollection = await getUserCollectionsCollection()
 
@@ -116,6 +117,7 @@ export async function addCardToCollection(cardData, collectionData = {}) {
         { multiverseid: cardData.multiverseid }
       ]
     })
+    
 
     if (existingUserCard) {
       // Update quantity instead of creating duplicate
@@ -144,8 +146,8 @@ export async function addCardToCollection(cardData, collectionData = {}) {
         createdAt: new Date(),
         updatedAt: new Date()
       }
-
-      await userCollectionsCollection.insertOne(collectionEntry)
+      
+      const result = await userCollectionsCollection.insertOne(collectionEntry)
     }
 
     revalidatePath('/collection')
@@ -236,6 +238,7 @@ export async function getUserCollection(filters = {}) {
     }
 
     const userId = session.user.id
+    
     const userCollectionsCollection = await getUserCollectionsCollection()
     const cardsCollection = await getCardsCollection()
 
@@ -286,7 +289,7 @@ export async function getUserCollection(filters = {}) {
             if (!card) {
               card = await cardsCollection.findOne({ id: entry.cardId })
             }
-          } catch {
+          } catch (error) {
             // If ObjectId conversion fails, try as string ID
             card = await cardsCollection.findOne({ id: entry.cardId })
           }
@@ -299,7 +302,7 @@ export async function getUserCollection(filters = {}) {
           cardId: entry.cardId?.toString() || entry.cardId,
           acquiredDate: entry.acquiredDate ? entry.acquiredDate.toISOString() : null,
           createdAt: entry.createdAt ? entry.createdAt.toISOString() : null,
-          updatedAt: entry.updatedAt ? entry.updatedAt.toISOString() : null,
+          updatedAt: entry.updatedDate ? entry.updatedDate.toISOString() : null,
           card: card ? {
             ...card,
             _id: card._id.toString(),
@@ -312,6 +315,7 @@ export async function getUserCollection(filters = {}) {
         return serializedEntry
       })
     )
+
 
     return {
       success: true,
