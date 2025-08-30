@@ -16,7 +16,8 @@ export default function CollectionCard({
   const [showDetails, setShowDetails] = useState(false)
   const { showImageModal } = useModal()
   
-  const card = collectionItem.card
+  // After migration, card data is directly in collectionItem
+  const card = collectionItem
 
   const getImageUrl = () => {
     // Priority order for image sources

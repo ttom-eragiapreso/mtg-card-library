@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "migrate": "node scripts/migrate-to-embedded-schema.js"
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.10.0",
@@ -14,6 +15,7 @@
     "axios": "^1.11.0",
     "bcryptjs": "^3.0.2",
     "daisyui": "^4.12.14",
+    "dotenv": "^17.2.1",
     "html5-qrcode": "^2.3.8",
     "mongodb": "^6.18.0",
     "mongoose": "^8.18.0",

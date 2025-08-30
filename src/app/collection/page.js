@@ -87,16 +87,16 @@ export default function CollectionPage() {
     // Apply search filter
     if (searchQuery) {
       filtered = filtered.filter(item => 
-        item.card?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.card?.type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.card?.text?.toLowerCase().includes(searchQuery.toLowerCase())
+        item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.text?.toLowerCase().includes(searchQuery.toLowerCase())
       )
     }
 
     // Apply type filter
     if (filterBy !== 'all') {
       filtered = filtered.filter(item => {
-        const types = item.card?.types || []
+        const types = item.types || []
         return types.some(type => type.toLowerCase() === filterBy.toLowerCase())
       })
     }
@@ -105,16 +105,16 @@ export default function CollectionPage() {
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'name':
-          return (a.card?.name || '').localeCompare(b.card?.name || '')
+          return (a.name || '').localeCompare(b.name || '')
         case 'set':
-          return (a.card?.set || '').localeCompare(b.card?.set || '')
+          return (a.set || '').localeCompare(b.set || '')
         case 'rarity': {
           const rarityOrder = { 'common': 1, 'uncommon': 2, 'rare': 3, 'mythic rare': 4 }
-          return (rarityOrder[a.card?.rarity?.toLowerCase()] || 0) - (rarityOrder[b.card?.rarity?.toLowerCase()] || 0)
+          return (rarityOrder[a.rarity?.toLowerCase()] || 0) - (rarityOrder[b.rarity?.toLowerCase()] || 0)
         }
         case 'dateAdded':
         default:
-          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+          return new Date(b.addedAt || 0) - new Date(a.addedAt || 0)
       }
     })
 
@@ -123,9 +123,14 @@ export default function CollectionPage() {
 
   const handleRemoveCard = async (collectionItem) => {
     try {
-      const result = await removeCardFromCollection(collectionItem.cardId, collectionItem.multiverseid)
+      const result = await removeCardFromCollection(collectionItem.id, collectionItem.multiverseid)
       if (result.success) {
-        setCollection(prev => prev.filter(item => item._id !== collectionItem._id))
+        // Create a unique identifier for filtering
+        const itemIdentifier = collectionItem.multiverseid || collectionItem.id
+        setCollection(prev => prev.filter(item => {
+          const currentIdentifier = item.multiverseid || item.id
+          return currentIdentifier !== itemIdentifier
+        }))
         setNotification({ type: 'success', message: 'Card removed from collection' })
         setTimeout(() => setNotification(null), 3000)
       } else {
@@ -256,14 +261,19 @@ export default function CollectionPage() {
         {/* Collection Grid */}
         {filteredCollection.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredCollection.map((item) => (
-              <CollectionCard
-                key={item._id}
-                collectionItem={item}
-                onRemove={handleRemoveCard}
-                viewMode="grid"
-              />
-            ))}
+            {filteredCollection.map((item, index) => {
+              // Create a unique key using multiverseid, id, or fall back to index
+              const uniqueKey = item.multiverseid || item.id || `card-${index}`
+              
+              return (
+                <CollectionCard
+                  key={uniqueKey}
+                  collectionItem={item}
+                  onRemove={handleRemoveCard}
+                  viewMode="grid"
+                />
+              )
+            })}
           </div>
         )}
 

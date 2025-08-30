@@ -2,8 +2,9 @@
 
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { getCardsCollection, getUserCollectionsCollection } from "@/lib/models"
+import { getUsersCollection } from "@/lib/models"
 import { revalidatePath } from "next/cache"
+import { ObjectId } from 'mongodb'
 
 // Import processCardData to ensure comprehensive card data
 const processCardData = (card) => {
@@ -68,86 +69,62 @@ export async function addCardToCollection(cardData, collectionData = {}) {
       throw new Error('You must be logged in to add cards to your collection')
     }
 
-    const userId = session.user.id
+    const userId = new ObjectId(session.user.id)
+    const usersCollection = await getUsersCollection()
+
+    // Process the card data and merge with collection data
+    const processedCard = processCardData(cardData)
     
-    const cardsCollection = await getCardsCollection()
-    const userCollectionsCollection = await getUserCollectionsCollection()
-
-    // First, ensure the card exists in our cards collection
-    let existingCard = null
-    if (cardData.multiverseid) {
-      existingCard = await cardsCollection.findOne({ multiverseid: cardData.multiverseid })
-    } else if (cardData.id) {
-      existingCard = await cardsCollection.findOne({ id: cardData.id })
+    const collectionItem = {
+      ...processedCard,
+      // User-specific collection data
+      quantity: collectionData.quantity || 1,
+      condition: collectionData.condition || 'near_mint',
+      foil: collectionData.foil || false,
+      language: collectionData.language || 'English',
+      notes: collectionData.notes || '',
+      acquiredDate: collectionData.acquiredDate || new Date(),
+      acquiredPrice: collectionData.acquiredPrice,
+      addedAt: new Date(),
+      updatedAt: new Date()
     }
 
-    let cardId = cardData.id || cardData.multiverseid?.toString()
+    // Check if user already has this card (by multiverseid or id)
+    const identifierQuery = cardData.multiverseid 
+      ? { "collection.multiverseid": cardData.multiverseid }
+      : { "collection.id": cardData.id }
 
-    if (!existingCard) {
-      // Process and save the comprehensive card data to our database
-      const processedCard = processCardData(cardData)
-      const cardToSave = {
-        ...processedCard,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-      
-      const result = await cardsCollection.insertOne(cardToSave)
-      cardId = result.insertedId.toString()
-    } else {
-      // Update existing card with any new data
-      const processedCard = processCardData(cardData)
-      await cardsCollection.updateOne(
-        { _id: existingCard._id },
-        {
-          $set: {
-            ...processedCard,
-            updatedAt: new Date()
-          }
-        }
-      )
-      cardId = existingCard._id.toString()
-    }
-
-    // Check if user already has this card in collection
-    const existingUserCard = await userCollectionsCollection.findOne({
-      userId,
-      $or: [
-        { cardId },
-        { multiverseid: cardData.multiverseid }
-      ]
+    const existingUser = await usersCollection.findOne({
+      _id: userId,
+      ...identifierQuery
     })
-    
 
-    if (existingUserCard) {
-      // Update quantity instead of creating duplicate
-      await userCollectionsCollection.updateOne(
-        { _id: existingUserCard._id },
+    if (existingUser) {
+      // Update quantity of existing card
+      const updateQuery = cardData.multiverseid 
+        ? { "collection.multiverseid": cardData.multiverseid }
+        : { "collection.id": cardData.id }
+        
+      await usersCollection.updateOne(
+        { 
+          _id: userId,
+          ...updateQuery
+        },
         {
-          $set: {
-            quantity: (existingUserCard.quantity || 1) + (collectionData.quantity || 1),
-            updatedAt: new Date()
-          }
+          $inc: { "collection.$.quantity": collectionData.quantity || 1 },
+          $set: { "collection.$.updatedAt": new Date() }
         }
       )
     } else {
-      // Add new card to user collection
-      const collectionEntry = {
-        userId,
-        cardId,
-        multiverseid: cardData.multiverseid,
-        quantity: collectionData.quantity || 1,
-        condition: collectionData.condition || 'near_mint',
-        foil: collectionData.foil || false,
-        language: collectionData.language || 'English',
-        notes: collectionData.notes || '',
-        acquiredDate: collectionData.acquiredDate || new Date(),
-        acquiredPrice: collectionData.acquiredPrice,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-      
-      const result = await userCollectionsCollection.insertOne(collectionEntry)
+      // Add new card to collection
+      await usersCollection.updateOne(
+        { _id: userId },
+        { 
+          $push: { collection: collectionItem },
+          $set: { updatedAt: new Date() }
+        },
+        { upsert: false } // Don't create user if doesn't exist
+      )
     }
 
     revalidatePath('/collection')
@@ -168,20 +145,32 @@ export async function removeCardFromCollection(cardId, multiverseid) {
       throw new Error('You must be logged in to manage your collection')
     }
 
-    const userId = session.user.id
-    const userCollectionsCollection = await getUserCollectionsCollection()
+    const userId = new ObjectId(session.user.id)
+    const usersCollection = await getUsersCollection()
 
-    const query = {
-      userId,
-      $or: [
-        { cardId },
-        { multiverseid }
-      ]
+    // Build the pull query to remove the card from collection array
+    const pullQuery = {}
+    if (multiverseid) {
+      pullQuery.multiverseid = multiverseid
+    } else if (cardId) {
+      pullQuery.id = cardId
+    } else {
+      throw new Error('Either cardId or multiverseid must be provided')
     }
 
-    const result = await userCollectionsCollection.deleteOne(query)
+    const result = await usersCollection.updateOne(
+      { _id: userId },
+      { 
+        $pull: { collection: pullQuery },
+        $set: { updatedAt: new Date() }
+      }
+    )
 
-    if (result.deletedCount === 0) {
+    if (result.matchedCount === 0) {
+      throw new Error('User not found')
+    }
+
+    if (result.modifiedCount === 0) {
       throw new Error('Card not found in your collection')
     }
 
@@ -195,7 +184,7 @@ export async function removeCardFromCollection(cardId, multiverseid) {
   }
 }
 
-export async function updateCardInCollection(collectionId, updateData) {
+export async function updateCardInCollection(cardId, multiverseid, updateData) {
   try {
     const session = await getServerSession(authOptions)
     
@@ -203,17 +192,30 @@ export async function updateCardInCollection(collectionId, updateData) {
       throw new Error('You must be logged in to manage your collection')
     }
 
-    const userId = session.user.id
-    const userCollectionsCollection = await getUserCollectionsCollection()
+    const userId = new ObjectId(session.user.id)
+    const usersCollection = await getUsersCollection()
 
-    const result = await userCollectionsCollection.updateOne(
-      { _id: collectionId, userId },
-      {
-        $set: {
-          ...updateData,
-          updatedAt: new Date()
-        }
+    // Build the query to find the specific card in the collection
+    const matchQuery = { _id: userId }
+    const identifierQuery = multiverseid 
+      ? { "collection.multiverseid": multiverseid }
+      : { "collection.id": cardId }
+
+    // Build the update object with $ positional operator
+    const updateObj = {
+      $set: {
+        "collection.$.updatedAt": new Date()
       }
+    }
+
+    // Add each field from updateData with positional operator
+    Object.keys(updateData).forEach(key => {
+      updateObj.$set[`collection.$.${key}`] = updateData[key]
+    })
+
+    const result = await usersCollection.updateOne(
+      { ...matchQuery, ...identifierQuery },
+      updateObj
     )
 
     if (result.matchedCount === 0) {
@@ -237,92 +239,103 @@ export async function getUserCollection(filters = {}) {
       return { success: false, error: 'You must be logged in to view your collection' }
     }
 
-    const userId = session.user.id
-    
-    const userCollectionsCollection = await getUserCollectionsCollection()
-    const cardsCollection = await getCardsCollection()
+    const userId = new ObjectId(session.user.id)
+    const usersCollection = await getUsersCollection()
 
-    // Build query
-    const query = { userId }
-    
-    // Add filters
+    // Build aggregation pipeline
+    const pipeline = [
+      { $match: { _id: userId } },
+      { $unwind: { path: '$collection', preserveNullAndEmptyArrays: false } },
+    ]
+
+    // Add search filter if provided
     if (filters.search) {
-      // We'll need to search in the cards collection and then filter user collection
-      const cardQuery = {
-        $or: [
-          { name: new RegExp(filters.search, 'i') },
-          { text: new RegExp(filters.search, 'i') },
-          { type: new RegExp(filters.search, 'i') }
-        ]
-      }
-      
-      const matchingCards = await cardsCollection.find(cardQuery).toArray()
-      const matchingCardIds = matchingCards.map(card => card._id.toString())
-      
-      query.cardId = { $in: matchingCardIds }
+      pipeline.push({
+        $match: {
+          $or: [
+            { 'collection.name': { $regex: filters.search, $options: 'i' } },
+            { 'collection.text': { $regex: filters.search, $options: 'i' } },
+            { 'collection.type': { $regex: filters.search, $options: 'i' } }
+          ]
+        }
+      })
     }
 
-    // Get user collection entries
-    const collectionEntries = await userCollectionsCollection
-      .find(query)
-      .sort({ createdAt: -1 })
-      .toArray()
-
-    // Get full card data for each collection entry
-    const enrichedCollection = await Promise.all(
-      collectionEntries.map(async (entry) => {
-        let card = null
-        
-        if (entry.multiverseid) {
-          card = await cardsCollection.findOne({ multiverseid: entry.multiverseid })
+    // Sort by most recently added
+    pipeline.push(
+      { $sort: { 'collection.addedAt': -1 } },
+      {
+        $project: {
+          _id: 0,
+          card: '$collection'
         }
-        
-        if (!card && entry.cardId) {
-          // Try to find by cardId (could be ObjectId string or original API ID)
-          try {
-            // First try as ObjectId
-            const { ObjectId } = require('mongodb')
-            if (ObjectId.isValid(entry.cardId)) {
-              card = await cardsCollection.findOne({ _id: new ObjectId(entry.cardId) })
-            }
-            // If not found, try as original API ID
-            if (!card) {
-              card = await cardsCollection.findOne({ id: entry.cardId })
-            }
-          } catch (error) {
-            // If ObjectId conversion fails, try as string ID
-            card = await cardsCollection.findOne({ id: entry.cardId })
-          }
-        }
-
-        // Serialize ObjectIds and Dates to strings for client components
-        const serializedEntry = {
-          ...entry,
-          _id: entry._id.toString(),
-          cardId: entry.cardId?.toString() || entry.cardId,
-          acquiredDate: entry.acquiredDate ? entry.acquiredDate.toISOString() : null,
-          createdAt: entry.createdAt ? entry.createdAt.toISOString() : null,
-          updatedAt: entry.updatedDate ? entry.updatedDate.toISOString() : null,
-          card: card ? {
-            ...card,
-            _id: card._id.toString(),
-            createdAt: card.createdAt ? card.createdAt.toISOString() : null,
-            updatedAt: card.updatedAt ? card.updatedAt.toISOString() : null,
-            lastSyncedAt: card.lastSyncedAt ? card.lastSyncedAt.toISOString() : null
-          } : null
-        }
-
-        return serializedEntry
-      })
+      }
     )
 
+    const result = await usersCollection.aggregate(pipeline).toArray()
+    
+    // Serialize dates for client components
+    const serializedCollection = result.map(item => ({
+      ...item.card,
+      acquiredDate: item.card.acquiredDate ? item.card.acquiredDate.toISOString() : null,
+      addedAt: item.card.addedAt ? item.card.addedAt.toISOString() : null,
+      updatedAt: item.card.updatedAt ? item.card.updatedAt.toISOString() : null,
+      lastSyncedAt: item.card.lastSyncedAt ? item.card.lastSyncedAt.toISOString() : null,
+    }))
 
     return {
       success: true,
-      collection: enrichedCollection.filter(item => item.card !== null)
+      collection: serializedCollection
     }
   } catch (error) {
     console.error('Error fetching user collection:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+export async function clearUserCollection() {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.id) {
+      throw new Error('You must be logged in to clear your collection')
+    }
+
+    const userId = new ObjectId(session.user.id)
+    const usersCollection = await getUsersCollection()
+
+    // Get collection count before clearing
+    const user = await usersCollection.findOne(
+      { _id: userId },
+      { projection: { collection: 1 } }
+    )
+    const cardCount = user?.collection?.length || 0
+
+    // Clear the collection array
+    const result = await usersCollection.updateOne(
+      { _id: userId },
+      { 
+        $set: { 
+          collection: [],
+          updatedAt: new Date()
+        }
+      }
+    )
+
+    if (result.matchedCount === 0) {
+      throw new Error('User not found')
+    }
+
+    revalidatePath('/collection')
+    revalidatePath('/')
+    
+    return { 
+      success: true, 
+      message: `Successfully cleared collection (${cardCount} cards removed)`,
+      deletedCount: cardCount
+    }
+  } catch (error) {
+    console.error('Error clearing user collection:', error)
     return { success: false, error: error.message }
   }
 }
@@ -335,17 +348,25 @@ export async function getCollectionStats() {
       return { success: false, error: 'You must be logged in' }
     }
 
-    const userId = session.user.id
-    const userCollectionsCollection = await getUserCollectionsCollection()
+    const userId = new ObjectId(session.user.id)
+    const usersCollection = await getUsersCollection()
 
-    const stats = await userCollectionsCollection.aggregate([
-      { $match: { userId } },
+    const stats = await usersCollection.aggregate([
+      { $match: { _id: userId } },
+      { $unwind: { path: '$collection', preserveNullAndEmptyArrays: false } },
       {
         $group: {
           _id: null,
-          totalCards: { $sum: '$quantity' },
+          totalCards: { $sum: '$collection.quantity' },
           uniqueCards: { $sum: 1 },
-          totalValue: { $sum: { $multiply: ['$acquiredPrice', '$quantity'] } }
+          totalValue: {
+            $sum: {
+              $multiply: [
+                { $ifNull: ['$collection.acquiredPrice', 0] },
+                '$collection.quantity'
+              ]
+            }
+          }
         }
       }
     ]).toArray()

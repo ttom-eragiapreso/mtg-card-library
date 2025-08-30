@@ -70,17 +70,32 @@ export const authOptions = {
           let dbUser = await usersCollection.findOne({ email: user.email });
           
           if (!dbUser) {
-            // Create new user if doesn't exist
+            // Create new user if doesn't exist with empty collection
             const newUser = {
               name: user.name,
               email: user.email,
               image: user.image,
               provider: 'google',
+              collection: [], // Initialize empty collection array
               createdAt: new Date(),
               updatedAt: new Date()
             };
             const result = await usersCollection.insertOne(newUser);
             dbUser = { ...newUser, _id: result.insertedId };
+          } else {
+            // Ensure existing users have a collection array
+            if (!dbUser.collection) {
+              await usersCollection.updateOne(
+                { _id: dbUser._id },
+                { 
+                  $set: { 
+                    collection: [],
+                    updatedAt: new Date()
+                  }
+                }
+              );
+              dbUser.collection = [];
+            }
           }
           
           // Update user object with database ID
