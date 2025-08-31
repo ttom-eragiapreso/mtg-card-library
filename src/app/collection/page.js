@@ -24,6 +24,10 @@ export default function CollectionPage() {
   const [sortBy, setSortBy] = useState('dateAdded') // dateAdded, name, set, rarity
   const [filterBy, setFilterBy] = useState('all') // all, creatures, spells, artifacts, etc.
   
+  // CMC Filters
+  const [cmcValue, setCmcValue] = useState('')
+  const [cmcMode, setCmcMode] = useState('exact') // exact, gte, lte
+  
   // Stats
   const [stats, setStats] = useState({
     totalCards: 0,
@@ -101,6 +105,26 @@ export default function CollectionPage() {
       })
     }
 
+    // Apply CMC filter
+    if (cmcValue !== '') {
+      const targetCmc = parseInt(cmcValue)
+      if (!isNaN(targetCmc)) {
+        filtered = filtered.filter(item => {
+          const itemCmc = parseInt(item.cmc) || 0
+          switch (cmcMode) {
+            case 'exact':
+              return itemCmc === targetCmc
+            case 'gte':
+              return itemCmc >= targetCmc
+            case 'lte':
+              return itemCmc <= targetCmc
+            default:
+              return itemCmc === targetCmc
+          }
+        })
+      }
+    }
+
     // Apply sorting
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -112,6 +136,11 @@ export default function CollectionPage() {
           const rarityOrder = { 'common': 1, 'uncommon': 2, 'rare': 3, 'mythic rare': 4 }
           return (rarityOrder[a.rarity?.toLowerCase()] || 0) - (rarityOrder[b.rarity?.toLowerCase()] || 0)
         }
+        case 'cmc': {
+          const aCmc = parseInt(a.cmc) || 0
+          const bCmc = parseInt(b.cmc) || 0
+          return aCmc - bCmc
+        }
         case 'dateAdded':
         default:
           return new Date(b.addedAt || 0) - new Date(a.addedAt || 0)
@@ -119,7 +148,7 @@ export default function CollectionPage() {
     })
 
     setFilteredCollection(filtered)
-  }, [collection, searchQuery, filterBy, sortBy])
+  }, [collection, searchQuery, filterBy, sortBy, cmcValue, cmcMode])
 
   const handleRemoveCard = async (collectionItem) => {
     try {
@@ -241,10 +270,10 @@ export default function CollectionPage() {
           <div className="text-center py-16">
             <div className="text-6xl mb-4">📦</div>
             <h3 className="text-2xl font-bold text-gray-900 mb-4">
-              {searchQuery || filterBy !== 'all' ? 'No cards match your filters' : 'No cards in collection'}
+              {searchQuery || filterBy !== 'all' || cmcValue !== '' ? 'No cards match your filters' : 'No cards in collection'}
             </h3>
             <p className="text-gray-600 mb-8">
-              {searchQuery || filterBy !== 'all' 
+              {searchQuery || filterBy !== 'all' || cmcValue !== ''
                 ? 'Try adjusting your search or filter criteria'
                 : 'Start building your collection by searching for cards'}
             </p>
@@ -324,6 +353,61 @@ export default function CollectionPage() {
                   </Select>
                 </div>
 
+                {/* CMC Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Converted Mana Cost (CMC)
+                  </label>
+                  <div className="space-y-3">
+                    {/* CMC Value Input */}
+                    <Input
+                      type="number"
+                      placeholder="Enter CMC value"
+                      className="w-full [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
+                      value={cmcValue}
+                      onChange={(e) => setCmcValue(e.target.value)}
+                      min="0"
+                      max="20"
+                    />
+                    
+                    {/* CMC Mode Toggle */}
+                    {cmcValue !== '' && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setCmcMode('exact')}
+                          className={`flex-1 px-3 py-2 text-xs font-medium rounded-md transition-colors ${
+                            cmcMode === 'exact'
+                              ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                              : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+                          }`}
+                        >
+                          Exact ({cmcValue})
+                        </button>
+                        <button
+                          onClick={() => setCmcMode('gte')}
+                          className={`flex-1 px-3 py-2 text-xs font-medium rounded-md transition-colors ${
+                            cmcMode === 'gte'
+                              ? 'bg-green-100 text-green-700 border border-green-300'
+                              : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+                          }`}
+                        >
+                          ≥ {cmcValue}
+                        </button>
+                        <button
+                          onClick={() => setCmcMode('lte')}
+                          className={`flex-1 px-3 py-2 text-xs font-medium rounded-md transition-colors ${
+                            cmcMode === 'lte'
+                              ? 'bg-purple-100 text-purple-700 border border-purple-300'
+                              : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+                          }`}
+                        >
+                          ≤ {cmcValue}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Sort By */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -338,6 +422,7 @@ export default function CollectionPage() {
                     <option value="name">Name</option>
                     <option value="set">Set</option>
                     <option value="rarity">Rarity</option>
+                    <option value="cmc">Mana Cost</option>
                   </Select>
                 </div>
               </div>
@@ -347,10 +432,13 @@ export default function CollectionPage() {
                   onClick={() => {
                     setFilterBy('all')
                     setSortBy('dateAdded')
+                    setCmcValue('')
+                    setCmcMode('exact')
+                    setSearchQuery('')
                   }}
                   className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
                 >
-                  Clear Filters
+                  Clear All Filters
                 </button>
                 <button
                   onClick={() => setShowAdvancedFilters(false)}
