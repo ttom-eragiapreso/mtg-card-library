@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { redirect } from 'next/navigation'
 import Navigation from '@/components/Navigation'
 import CardSearch from '@/components/CardSearch'
 import AddToCollectionModal from '@/components/AddToCollectionModal'
-import { addCardToCollection } from '@/lib/collection-actions'
+import { addCardToCollection, getUserCollection } from '@/lib/collection-actions'
 
 export default function SearchPage() {
   const { data: session, status } = useSession()
@@ -15,6 +15,8 @@ export default function SearchPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [isAddingToCollection, setIsAddingToCollection] = useState(false)
   const [versionsModalOpen, setVersionsModalOpen] = useState(false)
+  const [userCollection, setUserCollection] = useState([])
+  const [isLoadingCollection, setIsLoadingCollection] = useState(true)
 
   // Redirect to sign-in if not authenticated
   if (status === 'loading') {
@@ -32,6 +34,29 @@ export default function SearchPage() {
   if (status === 'unauthenticated') {
     redirect('/auth/signin')
   }
+
+  // Load user collection
+  useEffect(() => {
+    const loadCollection = async () => {
+      if (!session) return
+      
+      setIsLoadingCollection(true)
+      try {
+        const result = await getUserCollection()
+        if (result.success) {
+          setUserCollection(result.collection)
+        } else {
+          console.error('Failed to load collection:', result.error)
+        }
+      } catch (error) {
+        console.error('Error loading collection:', error)
+      } finally {
+        setIsLoadingCollection(false)
+      }
+    }
+
+    loadCollection()
+  }, [session])
 
   const handleAddToCollection = (card) => {
     if (!session) return
@@ -52,6 +77,11 @@ export default function SearchPage() {
         })
         setTimeout(() => setNotification(null), 3000)
         setShowAddModal(false)
+        // Refresh collection to show updated status
+        const refreshResult = await getUserCollection()
+        if (refreshResult.success) {
+          setUserCollection(refreshResult.collection)
+        }
       } else {
         setNotification({ type: 'error', message: result.error || 'Failed to add card' })
         setTimeout(() => setNotification(null), 3000)
@@ -107,6 +137,7 @@ export default function SearchPage() {
         <div className="max-w-6xl mx-auto">
           <CardSearch
             onAddToCollection={handleAddToCollection}
+            userCollection={userCollection}
             onVersionsModalChange={setVersionsModalOpen}
             forceCloseVersionsModal={showAddModal}
             className="w-full"

@@ -104,10 +104,26 @@ export default function CardSearch({
   }
 
   const isCardInCollection = (card) => {
-    return userCollection.some(collectionCard => 
-      collectionCard.multiverseid === card.multiverseid ||
-      (collectionCard.cardId === card.id && card.id)
-    )
+    return userCollection.some(collectionCard => {
+      // Check multiverseid match (most specific)
+      if (card.multiverseid && collectionCard.multiverseid) {
+        return collectionCard.multiverseid === card.multiverseid
+      }
+      
+      // Check id match (MTG API ID)
+      if (card.id && collectionCard.id) {
+        return collectionCard.id === card.id
+      }
+      
+      // If neither card has multiverseid or id, match by name + set as fallback
+      // This ensures we don't match different versions of the same card name
+      if (card.name && card.set && collectionCard.name && collectionCard.set) {
+        return collectionCard.name === card.name && collectionCard.set === card.set
+      }
+      
+      // Last resort: just name match (only if no other identifiers available)
+      return collectionCard.name === card.name && !card.multiverseid && !card.id && !card.set
+    })
   }
 
   useEffect(() => {
@@ -321,30 +337,35 @@ export default function CardSearch({
                 
                 {/* Show all versions button */}
                 {groupedResults[card.name].length > 1 ? (
-                  <button
-                    className="badge badge-info absolute bottom-2 sm:bottom-3 right-2 sm:right-3 hover:badge-info-focus transition-colors cursor-pointer text-xs"
-                    onClick={() => showAllVersions(card.name)}
-                  >
-                    {groupedResults[card.name].length}
-                  </button>
-                ) : (
-                  /* Single version - show add button */
-                  <div className="absolute bottom-2 sm:bottom-3 right-2 sm:right-3">
+                  <div className="absolute bottom-2 sm:bottom-3 right-2 sm:right-3 flex items-center gap-1">
                     <button
-                      className={`btn btn-xs sm:btn-sm ${
-                        isCardInCollection(card)
-                          ? 'btn-success btn-disabled' 
-                          : 'btn-primary'
-                      }`}
-                      onClick={() => onAddToCollection(card)}
-                      disabled={isCardInCollection(card)}
+                      className="badge badge-info hover:badge-info-focus transition-colors cursor-pointer text-xs"
+                      onClick={() => showAllVersions(card.name)}
                     >
-                      {isCardInCollection(card) ? (
-                        <>✓</>
-                      ) : (
-                        <>+</>
-                      )}
+                      {groupedResults[card.name].length}
                     </button>
+                    {/* Collection Status Pill for multi-version cards */}
+                    {isCardInCollection(card) && (
+                      <span className="badge badge-success badge-sm text-xs font-semibold shadow-md bg-green-600 text-white border-green-600">
+                        ✓
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  /* Single version - show add button and collection status */
+                  <div className="absolute bottom-2 sm:bottom-3 right-2 sm:right-3 flex items-center gap-1">
+                    <button
+                      className="btn btn-xs sm:btn-sm btn-primary"
+                      onClick={() => onAddToCollection(card)}
+                    >
+                      +
+                    </button>
+                    {/* Collection Status Pill for single-version cards */}
+                    {isCardInCollection(card) && (
+                      <span className="badge badge-success badge-sm text-xs font-semibold shadow-md bg-green-600 text-white border-green-600">
+                        ✓
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
