@@ -262,10 +262,23 @@ export default function CollectionPage() {
             {/* Advanced Filters Button */}
             <button
               onClick={() => setShowAdvancedFilters(true)}
-              className="flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200 border border-gray-300"
+              className="relative flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200 border border-gray-300"
             >
               <FunnelIcon className="w-5 h-5" />
               <span className="ml-2 hidden sm:inline">Filters</span>
+              {(() => {
+                // Calculate active filters count
+                let activeFilters = 0
+                if (filterBy !== 'all') activeFilters++
+                if (cmcValue !== '') activeFilters++
+                if (selectedColors.length > 0) activeFilters++
+                
+                return activeFilters > 0 ? (
+                  <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {activeFilters}
+                  </span>
+                ) : null
+              })()} 
             </button>
           </div>
         </div>
