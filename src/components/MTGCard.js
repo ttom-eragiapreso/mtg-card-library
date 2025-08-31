@@ -337,19 +337,6 @@ export default function MTGCard({
         )}
       </div>
 
-      {/* Debug: Test Modal Button */}
-      <div className="px-6 pb-2">
-        <button 
-          onClick={() => showImageModal({
-            imageUrl,
-            altText: card.name,
-            cardName: card.name
-          })}
-          className="bg-red-500 text-white px-2 py-1 text-xs rounded"
-        >
-          Test Modal
-        </button>
-      </div>
     </div>
   )
 }

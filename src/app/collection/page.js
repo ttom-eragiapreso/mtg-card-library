@@ -4,7 +4,11 @@ import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { redirect } from 'next/navigation'
 import { getUserCollection, removeCardFromCollection } from '@/lib/collection-actions'
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline'
+import Navigation from '@/components/Navigation'
+import Input from '@/components/ui/Input'
+import Select from '@/components/ui/Select'
+import CollectionCard from '@/components/CollectionCard'
 
 export default function CollectionPage() {
   const { data: session, status } = useSession()

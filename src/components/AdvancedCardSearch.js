@@ -334,7 +334,7 @@ export default function AdvancedCardSearch({
               <div className="flex items-center gap-2">
                 <button
                   className={`btn btn-primary ${isSearching ? 'loading' : ''}`}
-                  onClick={searchCards}
+                  onClick={() => searchCards()}
                   disabled={isSearching}
                 >
                   {isSearching ? (
