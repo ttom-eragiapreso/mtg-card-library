@@ -28,6 +28,9 @@ export default function CollectionPage() {
   const [cmcValue, setCmcValue] = useState('')
   const [cmcMode, setCmcMode] = useState('exact') // exact, gte, lte
   
+  // Color Filters
+  const [selectedColors, setSelectedColors] = useState([]) // Array of selected color letters: W, U, B, R, G
+  
   // Stats
   const [stats, setStats] = useState({
     totalCards: 0,
@@ -125,6 +128,15 @@ export default function CollectionPage() {
       }
     }
 
+    // Apply color filter
+    if (selectedColors.length > 0) {
+      filtered = filtered.filter(item => {
+        const cardColorIdentity = item.colorIdentity || []
+        // Check if card has ALL of the selected colors (AND logic)
+        return selectedColors.every(color => cardColorIdentity.includes(color))
+      })
+    }
+
     // Apply sorting
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -148,7 +160,7 @@ export default function CollectionPage() {
     })
 
     setFilteredCollection(filtered)
-  }, [collection, searchQuery, filterBy, sortBy, cmcValue, cmcMode])
+  }, [collection, searchQuery, filterBy, sortBy, cmcValue, cmcMode, selectedColors])
 
   const handleRemoveCard = async (collectionItem) => {
     try {
@@ -270,10 +282,10 @@ export default function CollectionPage() {
           <div className="text-center py-16">
             <div className="text-6xl mb-4">📦</div>
             <h3 className="text-2xl font-bold text-gray-900 mb-4">
-              {searchQuery || filterBy !== 'all' || cmcValue !== '' ? 'No cards match your filters' : 'No cards in collection'}
+              {searchQuery || filterBy !== 'all' || cmcValue !== '' || selectedColors.length > 0 ? 'No cards match your filters' : 'No cards in collection'}
             </h3>
             <p className="text-gray-600 mb-8">
-              {searchQuery || filterBy !== 'all' || cmcValue !== ''
+              {searchQuery || filterBy !== 'all' || cmcValue !== '' || selectedColors.length > 0
                 ? 'Try adjusting your search or filter criteria'
                 : 'Start building your collection by searching for cards'}
             </p>
@@ -351,6 +363,51 @@ export default function CollectionPage() {
                     <option value="planeswalker">Planeswalkers</option>
                     <option value="land">Lands</option>
                   </Select>
+                </div>
+
+                {/* Color Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Colors (Color Identity)
+                  </label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {[
+                      { letter: 'W', name: 'White', bg: 'bg-yellow-50', border: 'border-yellow-300', text: 'text-yellow-800', symbol: '☀️' },
+                      { letter: 'U', name: 'Blue', bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-800', symbol: '💧' },
+                      { letter: 'B', name: 'Black', bg: 'bg-gray-50', border: 'border-gray-400', text: 'text-gray-800', symbol: '💀' },
+                      { letter: 'R', name: 'Red', bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-800', symbol: '🔥' },
+                      { letter: 'G', name: 'Green', bg: 'bg-green-50', border: 'border-green-300', text: 'text-green-800', symbol: '🌿' }
+                    ].map(color => {
+                      const isSelected = selectedColors.includes(color.letter)
+                      return (
+                        <button
+                          key={color.letter}
+                          type="button"
+                          onClick={() => {
+                            setSelectedColors(prev => 
+                              isSelected 
+                                ? prev.filter(c => c !== color.letter)
+                                : [...prev, color.letter]
+                            )
+                          }}
+                          className={`flex flex-col items-center p-2 rounded-lg border-2 transition-all duration-200 ${
+                            isSelected
+                              ? `${color.bg} ${color.border} ${color.text} shadow-sm`
+                              : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                          }`}
+                          title={`${color.name} (${color.letter})`}
+                        >
+                          <span className="text-lg mb-1">{color.symbol}</span>
+                          <span className="text-xs font-medium">{color.letter}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {selectedColors.length > 0 && (
+                    <div className="mt-2 text-xs text-gray-600">
+                      Selected: {selectedColors.join(', ')}
+                    </div>
+                  )}
                 </div>
 
                 {/* CMC Filter */}
@@ -434,6 +491,7 @@ export default function CollectionPage() {
                     setSortBy('dateAdded')
                     setCmcValue('')
                     setCmcMode('exact')
+                    setSelectedColors([])
                     setSearchQuery('')
                   }}
                   className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
