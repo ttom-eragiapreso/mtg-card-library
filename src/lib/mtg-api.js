@@ -59,6 +59,7 @@ const transformScryfallCard = (scryfallCard) => {
   const transformed = {
     // Core identification
     id: scryfallCard.id,
+    oracle_id: scryfallCard.oracle_id,
     multiverseid: scryfallCard.multiverse_ids?.[0]?.toString() || null,
     name: scryfallCard.name,
     names: scryfallCard.card_faces?.map(face => face.name) || [],
@@ -191,6 +192,64 @@ const processCardData = (card) => {
 
 // Note: Database operations moved to collection-actions.js to keep this client-safe
 
+// Helper function to get English versions of cards found through foreign language search
+const getEnglishVersionsFromForeignSearch = async (foreignCards) => {
+  if (!foreignCards || foreignCards.length === 0) {
+    return []
+  }
+  
+  const englishCards = []
+  const processedOracleIds = new Set()
+  const uniqueOracleIds = []
+  
+  // First, collect unique oracle IDs to avoid duplicate API calls
+  for (const foreignCard of foreignCards) {
+    if (foreignCard.oracle_id && !processedOracleIds.has(foreignCard.oracle_id)) {
+      processedOracleIds.add(foreignCard.oracle_id)
+      uniqueOracleIds.push(foreignCard.oracle_id)
+    }
+  }
+  
+  // Batch the oracle IDs to reduce API calls - search for multiple at once
+  const batchSize = 5 // Process 5 oracle IDs at a time to respect rate limits
+  
+  for (let i = 0; i < uniqueOracleIds.length; i += batchSize) {
+    const batch = uniqueOracleIds.slice(i, i + batchSize)
+    
+    try {
+      // Create a query for multiple oracle IDs
+      const oracleQuery = batch.map(id => `oracle_id:${id}`).join(' or ')
+      const fullQuery = `(${oracleQuery}) lang:en`
+      
+      const response = await scryfallApiClient.get('/cards/search', {
+        params: {
+          q: fullQuery,
+          unique: 'prints',
+          order: 'released'
+        }
+      })
+      
+      if (response.data && response.data.data) {
+        // Transform and process English versions
+        const transformedCards = response.data.data.map(transformScryfallCard)
+        const processedCards = transformedCards.map(processCardData)
+        
+        englishCards.push(...processedCards)
+      }
+      
+      // Add a small delay between batches to respect rate limits
+      if (i + batchSize < uniqueOracleIds.length) {
+        await new Promise(resolve => setTimeout(resolve, 300))
+      }
+    } catch (error) {
+      console.error(`Error fetching English versions for batch starting at index ${i}:`, error)
+      // Continue with remaining batches even if one fails
+    }
+  }
+  
+  return englishCards
+}
+
 // Search cards by exact name only (no partial matching)
 export const searchCardsByExactName = async (name, page = 1, pageSize = 100) => {
   try {
@@ -287,53 +346,99 @@ export const searchCardsByName = async (name, page = 1, pageSize = 100, _include
 }
 
 // Search cards by language and name using Scryfall API
+// Returns English versions of cards even when searching by foreign language names
 export const searchCardsByLanguage = async (name, language = 'English', page = 1, pageSize = 100) => {
   try {
-    // For non-English languages, we'll search for cards with specific language codes
-    let query = name
-    
-    if (language && language !== 'English') {
-      // Map language names to Scryfall language codes
-      const languageMap = {
-        'Spanish': 'es',
-        'French': 'fr', 
-        'German': 'de',
-        'Italian': 'it',
-        'Portuguese': 'pt',
-        'Japanese': 'ja',
-        'Chinese Simplified': 'zhs',
-        'Chinese Traditional': 'zht',
-        'Korean': 'ko',
-        'Russian': 'ru'
-      }
-      
-      const langCode = languageMap[language]
-      if (langCode) {
-        query = `${name} lang:${langCode}`
-      }
+    // If searching in English, use the regular search
+    if (language === 'English') {
+      return await searchCardsByName(name, page, pageSize)
     }
     
-    const response = await scryfallApiClient.get('/cards/search', {
+    // For non-English languages, search for foreign names but return English versions
+    const languageMap = {
+      'Spanish': 'es',
+      'French': 'fr', 
+      'German': 'de',
+      'Italian': 'it',
+      'Portuguese': 'pt',
+      'Japanese': 'ja',
+      'Chinese Simplified': 'zhs',
+      'Chinese Traditional': 'zht',
+      'Korean': 'ko',
+      'Russian': 'ru'
+    }
+    
+    const langCode = languageMap[language]
+    if (!langCode) {
+      // Fallback to regular English search if language not supported
+      return await searchCardsByName(name, page, pageSize)
+    }
+    
+    // Search for the foreign language version first
+    let query = `${name} lang:${langCode}`
+    
+    const foreignSearchResponse = await scryfallApiClient.get('/cards/search', {
       params: {
         q: query,
         page: page
       }
     })
     
-    let cards = response.data.data || []
+    let foreignCards = foreignSearchResponse.data.data || []
     
-    // Transform Scryfall cards to MTG API format
-    const transformedCards = cards.map(transformScryfallCard)
+    // If no foreign results found, try a broader search with just the name
+    // This helps catch cards where the translation might not be exact
+    if (foreignCards.length === 0) {
+      try {
+        const broadSearchResponse = await scryfallApiClient.get('/cards/search', {
+          params: {
+            q: name,
+            page: page
+          }
+        })
+        
+        // Filter results to check if any have foreign names that match
+        const allResults = broadSearchResponse.data.data || []
+        foreignCards = allResults.filter(card => {
+          // Check if this card has a foreign name that matches our search
+          if (card.printed_name && card.printed_name.toLowerCase().includes(name.toLowerCase())) {
+            return true
+          }
+          return false
+        })
+      } catch (broadSearchError) {
+        console.log('Broad search fallback failed:', broadSearchError.message)
+      }
+    }
     
-    // Process cards to enhance image data
-    const processedCards = transformedCards.map(processCardData)
+    // If still no results, return empty
+    if (foreignCards.length === 0) {
+      return {
+        cards: [],
+        totalCount: 0,
+        currentPage: page,
+        pageSize
+      }
+    }
+    
+    // Get English versions of the found cards
+    const englishCards = await getEnglishVersionsFromForeignSearch(foreignCards)
+    
+    // Sort results to prioritize exact matches and popular sets
+    const sortedCards = englishCards.sort((a, b) => {
+      // Default to alphabetical order by set and then collector number
+      const setComparison = (a.set || '').localeCompare(b.set || '')
+      if (setComparison !== 0) return setComparison
+      
+      return (a.number || '').localeCompare(b.number || '')
+    })
     
     // Limit to requested page size
-    const limitedCards = processedCards.slice(0, pageSize)
+    const limitedCards = sortedCards.slice(0, pageSize)
     
     return {
       cards: limitedCards,
-      totalCount: response.data.total_cards || 0,
+      totalCount: englishCards.length,
       currentPage: page,
       pageSize
     }

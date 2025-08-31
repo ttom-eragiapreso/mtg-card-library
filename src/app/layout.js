@@ -1,6 +1,5 @@
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
-import Providers from './providers'
 import "./globals.css";
 
 export const metadata = {

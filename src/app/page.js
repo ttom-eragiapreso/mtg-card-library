@@ -3,7 +3,7 @@
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import Navigation from '@/components/Navigation'
-import { CameraIcon, MagnifyingGlassIcon, FolderIcon, ChartBarIcon, SparklesIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
+import { CameraIcon, MagnifyingGlassIcon, FolderIcon, SparklesIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 
 export default function Home() {
   const { data: session } = useSession()
