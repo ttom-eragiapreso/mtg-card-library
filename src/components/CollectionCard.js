@@ -196,17 +196,7 @@ export default function CollectionCard({
             </div>
           )}
           
-          {/* Collection Info Overlay */}
-          <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md p-2">
-            <div className="text-xs font-semibold text-gray-700">
-              Qty: {collectionItem.quantity || 1}
-            </div>
-            {collectionItem.condition && (
-              <div className="text-xs text-gray-600">
-                {collectionItem.condition}
-              </div>
-            )}
-          </div>
+          {/* Collection Info Overlay removed */}
 
           {/* Action Buttons - Show on hover */}
           <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
