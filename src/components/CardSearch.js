@@ -322,14 +322,14 @@ export default function CardSearch({
                 {/* Show all versions button */}
                 {groupedResults[card.name].length > 1 ? (
                   <button
-                    className="badge badge-info absolute top-2 sm:top-3 right-2 sm:right-3 hover:badge-info-focus transition-colors cursor-pointer text-xs"
+                    className="badge badge-info absolute bottom-2 sm:bottom-3 right-2 sm:right-3 hover:badge-info-focus transition-colors cursor-pointer text-xs"
                     onClick={() => showAllVersions(card.name)}
                   >
-                    {groupedResults[card.name].length} versions
+                    {groupedResults[card.name].length}
                   </button>
                 ) : (
                   /* Single version - show add button */
-                  <div className="absolute top-2 sm:top-3 right-2 sm:right-3">
+                  <div className="absolute bottom-2 sm:bottom-3 right-2 sm:right-3">
                     <button
                       className={`btn btn-xs sm:btn-sm ${
                         isCardInCollection(card)
@@ -340,9 +340,9 @@ export default function CardSearch({
                       disabled={isCardInCollection(card)}
                     >
                       {isCardInCollection(card) ? (
-                        <>✓<span className="hidden sm:inline ml-1">Added</span></>
+                        <>✓</>
                       ) : (
-                        <>+<span className="hidden sm:inline ml-1">Add</span></>
+                        <>+</>
                       )}
                     </button>
                   </div>
