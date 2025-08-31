@@ -165,10 +165,10 @@ export default function CardSearch({
                   <Input
                     type="text"
                     placeholder="Search for Magic cards by name..."
-                    className="w-full input-md sm:input-lg"
+                    className="w-full"
+                    leftIcon={MagnifyingGlassIcon}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    variant="bordered"
                   />
                 </div>
                 <div className="flex gap-2">
