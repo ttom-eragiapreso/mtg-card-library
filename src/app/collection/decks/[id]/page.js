@@ -15,6 +15,9 @@ import {
 } from '@heroicons/react/24/outline'
 import Navigation from '@/components/Navigation'
 import Link from 'next/link'
+import ManaCurveChart from '@/components/charts/ManaCurveChart'
+import ColorPieChart from '@/components/charts/ColorPieChart'
+import TypePieChart from '@/components/charts/TypePieChart'
 
 export default function DeckViewPage() {
   const { data: session, status } = useSession()
@@ -311,25 +314,8 @@ export default function DeckViewPage() {
               <h3 className="text-lg font-bold text-gray-900 mb-4">
                 Mana Curve
               </h3>
-              <div className="space-y-2">
-                {Object.entries(analytics.manaCurve).map(([cmc, count]) => (
-                  count > 0 && (
-                    <div key={cmc} className="flex items-center gap-3">
-                      <span className="text-sm font-medium w-8">
-                        {cmc === '10' ? '10+' : cmc}
-                      </span>
-                      <div className="flex-1 bg-gray-200 rounded-full h-4">
-                        <div 
-                          className="bg-blue-500 h-4 rounded-full"
-                          style={{ width: `${Math.min(100, (count / Math.max(...Object.values(analytics.manaCurve))) * 100)}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm text-gray-600 w-8 text-right">
-                        {count}
-                      </span>
-                    </div>
-                  )
-                ))}
+              <div className="h-48">
+                <ManaCurveChart manaCurve={analytics.manaCurve} />
               </div>
             </div>
 
@@ -339,21 +325,11 @@ export default function DeckViewPage() {
                 <ChartPieIcon className="w-5 h-5 mr-2" />
                 Color Distribution
               </h3>
-              <div className="space-y-2">
-                {Object.entries(analytics.colorDistribution)
-                  .filter(([_, count]) => count > 0)
-                  .map(([color, count]) => (
-                    <div key={color} className="flex items-center justify-between">
-                      <span className="text-sm font-medium">
-                        {colorLabels[color] || color}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <div className="text-sm text-gray-600">
-                          {count} ({analytics.colorPercentages[color]}%)
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+              <div className="h-48">
+                <ColorPieChart 
+                  colorDistribution={analytics.colorDistribution} 
+                  colorPercentages={analytics.colorPercentages}
+                />
               </div>
             </div>
 
@@ -362,19 +338,8 @@ export default function DeckViewPage() {
               <h3 className="text-lg font-bold text-gray-900 mb-4">
                 Card Types
               </h3>
-              <div className="space-y-2">
-                {Object.entries(analytics.typeDistribution)
-                  .filter(([_, count]) => count > 0)
-                  .map(([type, count]) => (
-                    <div key={type} className="flex items-center justify-between">
-                      <span className="text-sm font-medium capitalize">
-                        {type}
-                      </span>
-                      <span className="text-sm text-gray-600">
-                        {count}
-                      </span>
-                    </div>
-                  ))}
+              <div className="h-48">
+                <TypePieChart typeDistribution={analytics.typeDistribution} />
               </div>
             </div>
           </div>
