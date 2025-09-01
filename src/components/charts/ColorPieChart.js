@@ -1,33 +1,32 @@
 'use client'
 
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
 import { useMemo } from 'react'
 
 export default function ColorPieChart({ colorDistribution, colorPercentages }) {
-  const colors = useMemo(() => {
+  const data = useMemo(() => {
     // MTG color mapping with actual Magic colors
     const colorMap = {
-      W: { name: 'White', color: '#FFFBD5', stroke: '#FFF2A0' },
-      U: { name: 'Blue', color: '#0E68AB', stroke: '#0A5A9A' },
-      B: { name: 'Black', color: '#150B00', stroke: '#2A1500' },
-      R: { name: 'Red', color: '#D3202A', stroke: '#B91C1C' },
-      G: { name: 'Green', color: '#00733E', stroke: '#065F46' },
-      C: { name: 'Colorless', color: '#CCCCCC', stroke: '#9CA3AF' }
+      W: { name: 'White', color: '#FFFBD5' },
+      U: { name: 'Blue', color: '#0E68AB' },
+      B: { name: 'Black', color: '#2D1B05' }, // Slightly lighter for visibility
+      R: { name: 'Red', color: '#D3202A' },
+      G: { name: 'Green', color: '#00733E' },
+      C: { name: 'Colorless', color: '#9CA3AF' }
     }
 
     return Object.entries(colorDistribution)
       .filter(([_, count]) => count > 0)
       .map(([colorKey, count]) => ({
-        key: colorKey,
         name: colorMap[colorKey]?.name || colorKey,
-        color: colorMap[colorKey]?.color || '#CCCCCC',
-        stroke: colorMap[colorKey]?.stroke || '#9CA3AF',
-        count,
-        percentage: parseFloat(colorPercentages[colorKey] || 0)
+        value: count,
+        percentage: parseFloat(colorPercentages[colorKey] || 0),
+        color: colorMap[colorKey]?.color || '#9CA3AF'
       }))
-      .sort((a, b) => b.count - a.count)
+      .sort((a, b) => b.value - a.value)
   }, [colorDistribution, colorPercentages])
 
-  if (colors.length === 0) {
+  if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-gray-500">
         No color data available
@@ -35,103 +34,85 @@ export default function ColorPieChart({ colorDistribution, colorPercentages }) {
     )
   }
 
-  // Calculate angles for pie slices
-  let cumulativeAngle = 0
-  const slices = colors.map(color => {
-    const startAngle = cumulativeAngle
-    const angle = (color.percentage / 100) * 360
-    cumulativeAngle += angle
+  const CustomTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload
+      return (
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+          <p className="text-sm font-medium text-gray-900">
+            {data.name}: <span className="font-bold">{data.value} cards</span>
+          </p>
+          <p className="text-xs text-gray-600">
+            {data.percentage.toFixed(1)}% of deck
+          </p>
+        </div>
+      )
+    }
+    return null
+  }
+
+  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, value, percentage }) => {
+    if (percentage < 8) return null // Only show labels for slices > 8%
     
-    return {
-      ...color,
-      startAngle,
-      angle,
-      endAngle: startAngle + angle
-    }
-  })
+    const RADIAN = Math.PI / 180
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5
+    const x = cx + radius * Math.cos(-midAngle * RADIAN)
+    const y = cy + radius * Math.sin(-midAngle * RADIAN)
 
-  // Helper function to create SVG path for pie slice
-  const createArcPath = (centerX, centerY, radius, startAngle, endAngle) => {
-    const start = polarToCartesian(centerX, centerY, radius, endAngle)
-    const end = polarToCartesian(centerX, centerY, radius, startAngle)
-    const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1'
-
-    return [
-      'M', centerX, centerY,
-      'L', start.x, start.y,
-      'A', radius, radius, 0, largeArcFlag, 0, end.x, end.y,
-      'Z'
-    ].join(' ')
+    return (
+      <text 
+        x={x} 
+        y={y} 
+        fill="white" 
+        textAnchor={x > cx ? 'start' : 'end'} 
+        dominantBaseline="central"
+        className="text-xs font-semibold"
+        style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.7)' }}
+      >
+        {`${percentage.toFixed(0)}%`}
+      </text>
+    )
   }
-
-  const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
-    const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0
-    return {
-      x: centerX + (radius * Math.cos(angleInRadians)),
-      y: centerY + (radius * Math.sin(angleInRadians))
-    }
-  }
-
-  const size = 160
-  const center = size / 2
-  const radius = size / 2 - 10
 
   return (
-    <div className="w-full h-full flex items-center">
-      {/* Pie Chart */}
-      <div className="flex-1 flex justify-center">
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-          {slices.map((slice, index) => (
-            <g key={slice.key}>
-              <path
-                d={createArcPath(center, center, radius, slice.startAngle, slice.endAngle)}
-                fill={slice.color}
-                stroke={slice.stroke}
-                strokeWidth="2"
-                className="transition-all duration-200 hover:brightness-110"
-              />
-              {/* Add percentage label for larger slices */}
-              {slice.percentage >= 10 && (
-                <text
-                  x={center + (radius * 0.6 * Math.cos((slice.startAngle + slice.angle/2 - 90) * Math.PI / 180))}
-                  y={center + (radius * 0.6 * Math.sin((slice.startAngle + slice.angle/2 - 90) * Math.PI / 180))}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  className="text-xs font-semibold fill-white"
-                  style={{ textShadow: '1px 1px 1px rgba(0,0,0,0.5)' }}
-                >
-                  {slice.percentage.toFixed(0)}%
-                </text>
-              )}
-            </g>
-          ))}
-        </svg>
-      </div>
-
-      {/* Legend */}
-      <div className="flex-1 pl-4">
-        <div className="space-y-2">
-          {slices.map((slice) => (
-            <div key={slice.key} className="flex items-center gap-3">
-              <div
-                className="w-4 h-4 rounded-sm border-2"
-                style={{
-                  backgroundColor: slice.color,
-                  borderColor: slice.stroke
-                }}
-              />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900 truncate">
-                  {slice.name}
-                </div>
-                <div className="text-xs text-gray-600">
-                  {slice.count} cards ({slice.percentage.toFixed(1)}%)
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+    <div className="w-full h-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            labelLine={false}
+            label={renderCustomLabel}
+            outerRadius={70}
+            fill="#8884d8"
+            dataKey="value"
+            stroke="#fff"
+            strokeWidth={2}
+          >
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.color} />
+            ))}
+          </Pie>
+          <Tooltip content={<CustomTooltip />} />
+          <Legend 
+            verticalAlign="middle" 
+            align="right"
+            layout="vertical"
+            iconType="circle"
+            wrapperStyle={{ 
+              paddingLeft: '20px',
+              fontSize: '12px',
+              lineHeight: '20px'
+            }}
+            formatter={(value, entry) => (
+              <span style={{ color: '#374151' }}>
+                {value} ({entry.payload.value})
+              </span>
+            )}
+          />
+        </PieChart>
+      </ResponsiveContainer>
     </div>
   )
 }
