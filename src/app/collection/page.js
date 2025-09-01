@@ -9,6 +9,7 @@ import Navigation from '@/components/Navigation'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import CollectionCard from '@/components/CollectionCard'
+import Link from 'next/link'
 
 export default function CollectionPage() {
   const { data: session, status } = useSession()
@@ -221,9 +222,18 @@ export default function CollectionPage() {
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-12">
         {/* Page Header */}
         <div className="text-center mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-6 sm:mb-8">
-            📚 Your Collection
-          </h1>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 sm:mb-0">
+              📚 Your Collection
+            </h1>
+            <Link
+              href="/collection/decks"
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all duration-200"
+            >
+              <span className="text-lg mr-2">🎲</span>
+              View Decks
+            </Link>
+          </div>
         </div>
 
         {/* Collection Stats */}

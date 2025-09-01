@@ -39,6 +39,13 @@ export const createIndexes = async () => {
   await usersCollection.createIndex({ 'collection.rarity': 1 })
   await usersCollection.createIndex({ 'collection.cmc': 1 })
   
+  // Deck indexes
+  await usersCollection.createIndex({ 'decks.id': 1 })
+  await usersCollection.createIndex({ 'decks.name': 'text', 'decks.description': 'text' })
+  await usersCollection.createIndex({ 'decks.format': 1 })
+  await usersCollection.createIndex({ 'decks.isPublic': 1 })
+  await usersCollection.createIndex({ 'decks.createdAt': 1 })
+  
   console.log('Indexes created successfully')
 }
 
@@ -208,6 +215,26 @@ export const userSchema = {
     acquiredPrice: Number,
     addedAt: Date, // when added to collection
     updatedAt: Date // when collection entry was last updated
+  }],
+  
+  // User's decks
+  decks: [{
+    id: String, // unique deck identifier
+    name: String, // deck name
+    description: String, // optional deck description
+    format: String, // commander, standard, modern, legacy, etc.
+    isPublic: Boolean, // whether deck is publicly viewable
+    cards: [{
+      // Reference to card in user's collection
+      collectionCardId: String, // id or multiverseid from collection
+      multiverseid: Number,
+      cardId: String, // MTG API ID
+      quantity: Number, // number of this card in deck
+      category: String // 'mainboard', 'sideboard', 'maybeboard'
+    }],
+    createdAt: Date,
+    updatedAt: Date,
+    lastPlayedAt: Date // when deck was last used
   }],
   createdAt: Date,
   updatedAt: Date
