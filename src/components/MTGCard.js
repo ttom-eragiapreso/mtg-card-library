@@ -104,7 +104,7 @@ export default function MTGCard({
 
   if (variant === 'compact') {
     return (
-      <div className={`bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border border-gray-200 ${className}`}>
+      <div className={`bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border border-gray-200 h-full ${className}`}>
         <div className="p-4">
           <div className="flex items-start gap-4">
             {/* Compact Card Image */}

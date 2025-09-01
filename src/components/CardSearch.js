@@ -282,7 +282,7 @@ export default function CardSearch({
           <div className="divider"></div>
           
           <div className="overflow-y-auto max-h-[60vh]">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-stretch">
               {selectedVersions.map((card) => (
                 <MTGCard
                   key={card.multiverseid || card.id}
@@ -331,7 +331,7 @@ export default function CardSearch({
             </div>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-stretch">
             {uniqueCards.map((card) => (
               <div key={card.name} className="relative">
                 <MTGCard
@@ -353,7 +353,7 @@ export default function CardSearch({
                     </button>
                     {/* Collection Status Pill for multi-version cards */}
                     {isCardInCollection(card) && (
-                      <span className="badge badge-success badge-sm text-xs font-semibold shadow-md bg-green-600 text-white border-green-600">
+                      <span className="badge badge-success text-xs font-semibold shadow-md bg-green-600 text-white border-green-600 h-6 min-h-6 px-2">
                         ✓
                       </span>
                     )}
@@ -369,7 +369,7 @@ export default function CardSearch({
                     </button>
                     {/* Collection Status Pill for single-version cards */}
                     {isCardInCollection(card) && (
-                      <span className="badge badge-success badge-sm text-xs font-semibold shadow-md bg-green-600 text-white border-green-600">
+                      <span className="badge badge-success text-xs font-semibold shadow-md bg-green-600 text-white border-green-600 h-6 min-h-6 px-2">
                         ✓
                       </span>
                     )}
