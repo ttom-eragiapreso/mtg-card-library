@@ -5,14 +5,14 @@ import { useMemo } from 'react'
 
 export default function ColorPieChart({ colorDistribution, colorPercentages }) {
   const data = useMemo(() => {
-    // MTG color mapping with actual Magic colors
+    // MTG color mapping with authentic Magic colors
     const colorMap = {
-      W: { name: 'White', color: '#FFFBD5' },
-      U: { name: 'Blue', color: '#0E68AB' },
-      B: { name: 'Black', color: '#2D1B05' }, // Slightly lighter for visibility
-      R: { name: 'Red', color: '#D3202A' },
-      G: { name: 'Green', color: '#00733E' },
-      C: { name: 'Colorless', color: '#9CA3AF' }
+      W: { name: 'White', color: '#FFFBD5' }, // Pale cream like Plains
+      U: { name: 'Blue', color: '#0E68AB' }, // Deep blue like Islands
+      B: { name: 'Black', color: '#2C1810' }, // Dark brown-black like Swamps
+      R: { name: 'Red', color: '#D3202A' }, // Fiery red like Mountains
+      G: { name: 'Green', color: '#196834' }, // Forest green like Forests
+      C: { name: 'Colorless', color: '#D1D5DB' } // Light gray for artifacts
     }
 
     return Object.entries(colorDistribution)
@@ -75,7 +75,21 @@ export default function ColorPieChart({ colorDistribution, colorPercentages }) {
   }
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full chart-container" style={{ userSelect: 'none' }}>
+      <style>{`
+        .chart-container .recharts-wrapper {
+          outline: none !important;
+        }
+        .chart-container .recharts-wrapper * {
+          outline: none !important;
+        }
+        .chart-container .recharts-pie-sector {
+          outline: none !important;
+        }
+        .chart-container .recharts-pie-sector:focus {
+          outline: none !important;
+        }
+      `}</style>
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
@@ -89,12 +103,22 @@ export default function ColorPieChart({ colorDistribution, colorPercentages }) {
             dataKey="value"
             stroke="#fff"
             strokeWidth={2}
+            style={{ outline: 'none' }}
           >
             {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
+              <Cell 
+                key={`cell-${index}`} 
+                fill={entry.color}
+                style={{ outline: 'none' }}
+              />
             ))}
           </Pie>
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip 
+            content={<CustomTooltip />}
+            position={{ x: undefined, y: undefined }}
+            allowEscapeViewBox={{ x: false, y: false }}
+            offset={10}
+          />
           <Legend 
             verticalAlign="middle" 
             align="right"

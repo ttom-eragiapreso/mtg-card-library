@@ -79,7 +79,21 @@ export default function TypePieChart({ typeDistribution }) {
   }
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full chart-container" style={{ userSelect: 'none' }}>
+      <style>{`
+        .chart-container .recharts-wrapper {
+          outline: none !important;
+        }
+        .chart-container .recharts-wrapper * {
+          outline: none !important;
+        }
+        .chart-container .recharts-pie-sector {
+          outline: none !important;
+        }
+        .chart-container .recharts-pie-sector:focus {
+          outline: none !important;
+        }
+      `}</style>
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
@@ -93,12 +107,22 @@ export default function TypePieChart({ typeDistribution }) {
             dataKey="value"
             stroke="#fff"
             strokeWidth={2}
+            style={{ outline: 'none' }}
           >
             {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
+              <Cell 
+                key={`cell-${index}`} 
+                fill={entry.color}
+                style={{ outline: 'none' }}
+              />
             ))}
           </Pie>
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip 
+            content={<CustomTooltip />}
+            position={{ x: undefined, y: undefined }}
+            allowEscapeViewBox={{ x: false, y: false }}
+            offset={10}
+          />
           <Legend 
             verticalAlign="middle" 
             align="right"
