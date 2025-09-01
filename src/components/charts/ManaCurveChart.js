@@ -40,6 +40,20 @@ export default function ManaCurveChart({ manaCurve }) {
 
   return (
     <div className="w-full h-full">
+      <style>{`
+        .recharts-wrapper {
+          outline: none !important;
+        }
+        .recharts-wrapper * {
+          outline: none !important;
+        }
+        .recharts-rectangle {
+          outline: none !important;
+        }
+        .recharts-rectangle:focus {
+          outline: none !important;
+        }
+      `}</style>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}

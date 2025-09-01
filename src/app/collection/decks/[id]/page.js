@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { redirect, useParams } from 'next/navigation'
-import { getDeckById, getDeckAnalytics, updateDeck, removeCardFromDeck } from '@/lib/deck-actions'
+import { getDeckById, getDeckAnalytics, updateDeck, removeCardFromDeck, addBasicLandsToDeck } from '@/lib/deck-actions'
 import { getUserCollection } from '@/lib/collection-actions'
 import { 
   ChartBarIcon, 
@@ -18,6 +18,7 @@ import Link from 'next/link'
 import ManaCurveChart from '@/components/charts/ManaCurveChart'
 import ColorPieChart from '@/components/charts/ColorPieChart'
 import TypePieChart from '@/components/charts/TypePieChart'
+import BasicLandsAdder from '@/components/BasicLandsAdder'
 
 export default function DeckViewPage() {
   const { data: session, status } = useSession()
@@ -33,6 +34,8 @@ export default function DeckViewPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showAddCardsModal, setShowAddCardsModal] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
+  const [isAddingLands, setIsAddingLands] = useState(false)
+  const [shouldResetLandsForm, setShouldResetLandsForm] = useState(false)
 
   // Edit deck form data
   const [editData, setEditData] = useState({
@@ -156,6 +159,38 @@ export default function DeckViewPage() {
       console.error('Error removing card:', error)
       setNotification({ type: 'error', message: 'An error occurred while removing the card' })
       setTimeout(() => setNotification(null), 3000)
+    }
+  }
+
+  const handleAddBasicLands = async (basicLands) => {
+    setIsAddingLands(true)
+    try {
+      const result = await addBasicLandsToDeck(deckId, basicLands)
+      if (result.success) {
+        // Reload deck data
+        const [deckResult, analyticsResult] = await Promise.all([
+          getDeckById(deckId),
+          getDeckAnalytics(deckId)
+        ])
+
+        if (deckResult.success) setDeck(deckResult.deck)
+        if (analyticsResult.success) setAnalytics(analyticsResult.analytics)
+
+        setNotification({ type: 'success', message: result.message })
+        setTimeout(() => setNotification(null), 3000)
+        
+        // Reset the basic lands form
+        setShouldResetLandsForm(true)
+      } else {
+        setNotification({ type: 'error', message: result.error || 'Failed to add basic lands' })
+        setTimeout(() => setNotification(null), 3000)
+      }
+    } catch (error) {
+      console.error('Error adding basic lands:', error)
+      setNotification({ type: 'error', message: 'An error occurred while adding basic lands' })
+      setTimeout(() => setNotification(null), 3000)
+    } finally {
+      setIsAddingLands(false)
     }
   }
 
@@ -345,12 +380,22 @@ export default function DeckViewPage() {
           </div>
         )}
 
+        {/* Basic Lands Adder */}
+        <div className="mb-8">
+          <BasicLandsAdder 
+            onAddLands={handleAddBasicLands}
+            isLoading={isAddingLands}
+            shouldReset={shouldResetLandsForm}
+            onResetComplete={() => setShouldResetLandsForm(false)}
+          />
+        </div>
+
         {/* Deck Cards */}
         <div className="bg-white rounded-xl shadow-md">
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">
-                Cards in Deck ({deck.cards.length})
+                Cards in Deck ({analytics?.totalCards || deck.cards.reduce((sum, card) => sum + card.quantity, 0)})
               </h3>
             </div>
           </div>
@@ -367,9 +412,24 @@ export default function DeckViewPage() {
                 <div key={`${deckCard.collectionCardId}-${index}`} className="p-4 hover:bg-gray-50">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                      {/* Card Image */}
+                      {/* Card Image or Mana Symbol */}
                       <div className="flex-shrink-0">
-                        {deckCard.cardData?.imageSources?.[0] ? (
+                        {deckCard.isBasicLand ? (
+                          <div className="w-12 h-16 bg-gray-100 rounded border flex items-center justify-center">
+                            <i className={`ms ms-${deckCard.cardData.name === 'Plains' ? 'w' :
+                                                   deckCard.cardData.name === 'Island' ? 'u' :
+                                                   deckCard.cardData.name === 'Swamp' ? 'b' :
+                                                   deckCard.cardData.name === 'Mountain' ? 'r' :
+                                                   deckCard.cardData.name === 'Forest' ? 'g' : 'c'} ms-cost text-2xl`} 
+                               style={{
+                                 color: deckCard.cardData.name === 'Plains' ? '#f59e0b' :
+                                        deckCard.cardData.name === 'Island' ? '#3b82f6' :
+                                        deckCard.cardData.name === 'Swamp' ? '#6b7280' :
+                                        deckCard.cardData.name === 'Mountain' ? '#ef4444' :
+                                        deckCard.cardData.name === 'Forest' ? '#10b981' : '#6b7280'
+                               }}></i>
+                          </div>
+                        ) : deckCard.cardData?.imageSources?.[0] ? (
                           <img
                             src={deckCard.cardData.imageSources[0]}
                             alt={deckCard.cardData.name}

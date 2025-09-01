@@ -127,6 +127,11 @@ export async function getDeckById(deckId) {
 
     // Populate deck cards with full card data from collection
     const populatedCards = deck.cards.map(deckCard => {
+      // For basic lands, cardData is already embedded
+      if (deckCard.isBasicLand && deckCard.cardData) {
+        return deckCard
+      }
+      
       const collectionCard = collection.find(c => 
         (deckCard.multiverseid && c.multiverseid === deckCard.multiverseid) ||
         (deckCard.cardId && c.id === deckCard.cardId)
@@ -377,6 +382,165 @@ export async function removeCardFromDeck(deckId, cardData, quantity = null) {
   }
 }
 
+// Add basic lands to deck (without collection validation)
+export async function addBasicLandsToDeck(deckId, basicLands) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.id) {
+      throw new Error('You must be logged in to manage decks')
+    }
+
+    const userId = new ObjectId(session.user.id)
+    const usersCollection = await getUsersCollection()
+
+    // Basic land card data templates
+    const basicLandData = {
+      Plains: {
+        name: 'Plains',
+        type: 'Basic Land — Plains',
+        types: ['Land', 'Basic'],
+        subtypes: ['Plains'],
+        colors: [],
+        cmc: 0,
+        manaCost: '',
+        text: '{T}: Add {W}.',
+        power: null,
+        toughness: null,
+        rarity: 'Basic Land'
+      },
+      Island: {
+        name: 'Island',
+        type: 'Basic Land — Island',
+        types: ['Land', 'Basic'],
+        subtypes: ['Island'],
+        colors: [],
+        cmc: 0,
+        manaCost: '',
+        text: '{T}: Add {U}.',
+        power: null,
+        toughness: null,
+        rarity: 'Basic Land'
+      },
+      Swamp: {
+        name: 'Swamp',
+        type: 'Basic Land — Swamp',
+        types: ['Land', 'Basic'],
+        subtypes: ['Swamp'],
+        colors: [],
+        cmc: 0,
+        manaCost: '',
+        text: '{T}: Add {B}.',
+        power: null,
+        toughness: null,
+        rarity: 'Basic Land'
+      },
+      Mountain: {
+        name: 'Mountain',
+        type: 'Basic Land — Mountain',
+        types: ['Land', 'Basic'],
+        subtypes: ['Mountain'],
+        colors: [],
+        cmc: 0,
+        manaCost: '',
+        text: '{T}: Add {R}.',
+        power: null,
+        toughness: null,
+        rarity: 'Basic Land'
+      },
+      Forest: {
+        name: 'Forest',
+        type: 'Basic Land — Forest',
+        types: ['Land', 'Basic'],
+        subtypes: ['Forest'],
+        colors: [],
+        cmc: 0,
+        manaCost: '',
+        text: '{T}: Add {G}.',
+        power: null,
+        toughness: null,
+        rarity: 'Basic Land'
+      }
+    }
+
+    // Process each basic land to add
+    for (const { landName, quantity } of basicLands) {
+      if (!basicLandData[landName]) {
+        console.warn(`Unknown basic land: ${landName}`)
+        continue
+      }
+
+      const landData = basicLandData[landName]
+      const deckCard = {
+        collectionCardId: `basic-${landName.toLowerCase()}`,
+        multiverseid: null,
+        cardId: `basic-${landName.toLowerCase()}`,
+        quantity,
+        category: 'mainboard',
+        isBasicLand: true // Flag to identify basic lands
+      }
+
+      // Check if this basic land already exists in deck
+      const existingResult = await usersCollection.findOne({
+        _id: userId,
+        'decks.id': deckId,
+        'decks.cards.cardId': `basic-${landName.toLowerCase()}`
+      })
+
+      if (existingResult) {
+        // Update quantity of existing basic land
+        await usersCollection.updateOne(
+          { _id: userId },
+          {
+            $inc: { 'decks.$[deck].cards.$[card].quantity': quantity },
+            $set: { 'decks.$[deck].updatedAt': new Date() }
+          },
+          {
+            arrayFilters: [
+              { 'deck.id': deckId },
+              { 'card.cardId': `basic-${landName.toLowerCase()}` }
+            ]
+          }
+        )
+      } else {
+        // Add new basic land to deck
+        await usersCollection.updateOne(
+          { _id: userId, 'decks.id': deckId },
+          {
+            $push: { 'decks.$.cards': deckCard },
+            $set: { 'decks.$.updatedAt': new Date() }
+          }
+        )
+      }
+
+      // Also add the basic land data to a virtual collection for deck analytics
+      // We'll store basic land templates in the deck cards with full card data
+      await usersCollection.updateOne(
+        { _id: userId },
+        {
+          $set: {
+            [`decks.$[deck].cards.$[card].cardData`]: landData,
+            'decks.$[deck].updatedAt': new Date()
+          }
+        },
+        {
+          arrayFilters: [
+            { 'deck.id': deckId },
+            { 'card.cardId': `basic-${landName.toLowerCase()}` }
+          ]
+        }
+      )
+    }
+
+    revalidatePath(`/collection/decks/${deckId}`)
+
+    return { success: true, message: 'Basic lands added to deck successfully' }
+  } catch (error) {
+    console.error('Error adding basic lands to deck:', error)
+    return { success: false, error: error.message }
+  }
+}
+
 // Calculate deck analytics
 export async function getDeckAnalytics(deckId) {
   try {
@@ -427,25 +591,30 @@ export async function getDeckAnalytics(deckId) {
 
       const card = deckCard.cardData
       const quantity = deckCard.quantity
+      const isBasicLand = deckCard.isBasicLand || false
 
-      // Mana curve
-      const cmc = parseInt(card.cmc) || 0
-      const cmcGroup = cmc > 10 ? 10 : cmc
-      manaCurve[cmcGroup] += quantity
-
-      // Color distribution
-      const colors = card.colors || []
-      if (colors.length === 0) {
-        colorDistribution.C += quantity
-      } else {
-        colors.forEach(color => {
-          if (colorDistribution.hasOwnProperty(color)) {
-            colorDistribution[color] += quantity
-          }
-        })
+      // Mana curve (exclude basic lands)
+      if (!isBasicLand) {
+        const cmc = parseInt(card.cmc) || 0
+        const cmcGroup = cmc > 10 ? 10 : cmc
+        manaCurve[cmcGroup] += quantity
       }
 
-      // Type distribution
+      // Color distribution (exclude basic lands)
+      if (!isBasicLand) {
+        const colors = card.colors || []
+        if (colors.length === 0) {
+          colorDistribution.C += quantity
+        } else {
+          colors.forEach(color => {
+            if (colorDistribution.hasOwnProperty(color)) {
+              colorDistribution[color] += quantity
+            }
+          })
+        }
+      }
+
+      // Type distribution (include all cards including basic lands)
       const types = card.types || []
       let counted = false
       
@@ -472,13 +641,15 @@ export async function getDeckAnalytics(deckId) {
         : 0
     })
 
-    // Average CMC
-    const totalCmc = mainboardCards.reduce((sum, deckCard) => {
+    // Average CMC (exclude basic lands)
+    const nonBasicLandCards = mainboardCards.filter(card => !card.isBasicLand)
+    const totalNonBasicCards = nonBasicLandCards.reduce((sum, card) => sum + card.quantity, 0)
+    const totalCmc = nonBasicLandCards.reduce((sum, deckCard) => {
       if (!deckCard.cardData) return sum
       const cmc = parseInt(deckCard.cardData.cmc) || 0
       return sum + (cmc * deckCard.quantity)
     }, 0)
-    const averageCmc = totalCards > 0 ? (totalCmc / totalCards).toFixed(2) : 0
+    const averageCmc = totalNonBasicCards > 0 ? (totalCmc / totalNonBasicCards).toFixed(2) : 0
 
     const analytics = {
       totalCards,

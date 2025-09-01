@@ -34,22 +34,6 @@ export default function ColorPieChart({ colorDistribution, colorPercentages }) {
     )
   }
 
-  const CustomTooltip = ({ active, payload }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload
-      return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="text-sm font-medium text-gray-900">
-            {data.name}: <span className="font-bold">{data.value} cards</span>
-          </p>
-          <p className="text-xs text-gray-600">
-            {data.percentage.toFixed(1)}% of deck
-          </p>
-        </div>
-      )
-    }
-    return null
-  }
 
   const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, value, percentage }) => {
     if (percentage < 8) return null // Only show labels for slices > 8%
@@ -114,7 +98,14 @@ export default function ColorPieChart({ colorDistribution, colorPercentages }) {
             ))}
           </Pie>
           <Tooltip 
-            content={<CustomTooltip />}
+            formatter={(value, name) => [`${value} cards (${data.find(d => d.name === name)?.percentage?.toFixed(1) || 0}%)`, name]}
+            labelStyle={{ color: '#374151' }}
+            contentStyle={{
+              backgroundColor: 'white',
+              border: '1px solid #d1d5db',
+              borderRadius: '8px',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+            }}
           />
           <Legend 
             verticalAlign="middle" 
