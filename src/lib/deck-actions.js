@@ -607,7 +607,7 @@ export async function getDeckAnalytics(deckId) {
           colorDistribution.C += quantity
         } else {
           colors.forEach(color => {
-            if (colorDistribution.hasOwnProperty(color)) {
+            if (Object.hasOwn(colorDistribution, color)) {
               colorDistribution[color] += quantity
             }
           })
