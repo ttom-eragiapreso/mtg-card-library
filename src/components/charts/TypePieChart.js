@@ -119,9 +119,6 @@ export default function TypePieChart({ typeDistribution }) {
           </Pie>
           <Tooltip 
             content={<CustomTooltip />}
-            position={{ x: undefined, y: undefined }}
-            allowEscapeViewBox={{ x: false, y: false }}
-            offset={10}
           />
           <Legend 
             verticalAlign="middle" 
