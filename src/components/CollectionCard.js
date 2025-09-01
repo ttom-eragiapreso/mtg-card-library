@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useModal } from './ModalProvider'
-import { TrashIcon, InformationCircleIcon } from '@heroicons/react/24/outline'
+import { TrashIcon, InformationCircleIcon, RectangleStackIcon } from '@heroicons/react/24/outline'
+import { getUserDecks, addCardToDeck } from '@/lib/deck-actions'
 
 export default function CollectionCard({ 
   collectionItem, 
@@ -14,10 +15,38 @@ export default function CollectionCard({
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageLoading, setImageLoading] = useState(true)
   const [showDetails, setShowDetails] = useState(false)
+  const [showAddToDeck, setShowAddToDeck] = useState(false)
+  const [decks, setDecks] = useState([])
+  const [loadingDecks, setLoadingDecks] = useState(false)
+  const [addingToDeck, setAddingToDeck] = useState(null)
+  const [notification, setNotification] = useState(null)
   const { showImageModal } = useModal()
   
   // After migration, card data is directly in collectionItem
   const card = collectionItem
+
+  // Load user's decks when Add to Deck is opened
+  useEffect(() => {
+    const loadDecks = async () => {
+      if (showAddToDeck && !loadingDecks) {
+        setLoadingDecks(true)
+        try {
+          const result = await getUserDecks()
+          if (result.success) {
+            setDecks(result.decks)
+          } else {
+            console.error('Failed to load decks:', result.error)
+          }
+        } catch (error) {
+          console.error('Error loading decks:', error)
+        } finally {
+          setLoadingDecks(false)
+        }
+      }
+    }
+
+    loadDecks()
+  }, [showAddToDeck])
 
   const getImageUrl = () => {
     // Priority order for image sources
@@ -72,6 +101,27 @@ export default function CollectionCard({
   const handleRemove = () => {
     if (onRemove) {
       onRemove(collectionItem)
+    }
+  }
+
+  const handleAddToDeck = async (deckId) => {
+    setAddingToDeck(deckId)
+    try {
+      const result = await addCardToDeck(deckId, card, 1, 'mainboard')
+      if (result.success) {
+        setNotification({ type: 'success', message: 'Card added to deck successfully' })
+        setShowAddToDeck(false)
+        setTimeout(() => setNotification(null), 3000)
+      } else {
+        setNotification({ type: 'error', message: result.error || 'Failed to add card to deck' })
+        setTimeout(() => setNotification(null), 3000)
+      }
+    } catch (error) {
+      console.error('Error adding card to deck:', error)
+      setNotification({ type: 'error', message: 'An error occurred while adding the card to deck' })
+      setTimeout(() => setNotification(null), 3000)
+    } finally {
+      setAddingToDeck(null)
     }
   }
 
@@ -141,6 +191,13 @@ export default function CollectionCard({
             {/* Action Buttons */}
             <div className="flex-shrink-0 flex gap-2">
               <button
+                className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                onClick={() => setShowAddToDeck(true)}
+                title="Add to deck"
+              >
+                <RectangleStackIcon className="w-5 h-5" />
+              </button>
+              <button
                 className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                 onClick={() => setShowDetails(!showDetails)}
                 title={showDetails ? "Hide details" : "Show details"}
@@ -201,6 +258,13 @@ export default function CollectionCard({
           {/* Action Buttons - Show on hover */}
           <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
             <button
+              className="p-2 bg-white/90 backdrop-blur-sm text-gray-600 hover:text-purple-600 rounded-lg shadow-md transition-colors"
+              onClick={() => setShowAddToDeck(true)}
+              title="Add to deck"
+            >
+              <RectangleStackIcon className="w-4 h-4" />
+            </button>
+            <button
               className="p-2 bg-white/90 backdrop-blur-sm text-gray-600 hover:text-blue-600 rounded-lg shadow-md transition-colors"
               onClick={() => setShowDetails(!showDetails)}
               title={showDetails ? "Hide details" : "Show details"}
@@ -221,10 +285,21 @@ export default function CollectionCard({
       {/* Minimal Card Info */}
       <div className="px-6 pb-6">
         <h2 className="text-xl font-bold text-gray-900 mb-2">{card.name}</h2>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-3">
           <span className="px-3 py-1 bg-gray-100 text-gray-800 text-sm font-semibold rounded-md">
             {getSetDisplayName(card)}
           </span>
+        </div>
+        
+        {/* Add to Deck Button */}
+        <div className="mb-3">
+          <button
+            onClick={() => setShowAddToDeck(true)}
+            className="w-full py-2 px-4 bg-purple-50 text-purple-700 rounded-lg font-medium hover:bg-purple-100 transition-colors duration-200 flex items-center justify-center gap-2"
+          >
+            <RectangleStackIcon className="w-4 h-4" />
+            Add to Deck
+          </button>
         </div>
         
         {/* Show Details Section */}
@@ -279,6 +354,112 @@ export default function CollectionCard({
           </div>
         )}
       </div>
+      
+      {/* Add to Deck Modal */}
+      {showAddToDeck && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Add to Deck</h2>
+                <button
+                  onClick={() => setShowAddToDeck(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="mb-4">
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  {imageUrl && (
+                    <img
+                      src={imageUrl}
+                      alt={card.name}
+                      className="w-12 h-16 object-cover rounded border"
+                      onError={(e) => {
+                        const nextSrc = card.imageSources?.[1]
+                        if (nextSrc && e.target.src !== nextSrc) {
+                          e.target.src = nextSrc
+                        }
+                      }}
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-gray-900 truncate">{card.name}</h3>
+                    <p className="text-sm text-gray-600">{card.type}</p>
+                  </div>
+                </div>
+              </div>
+
+              {loadingDecks ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="loading loading-spinner loading-md"></div>
+                </div>
+              ) : decks.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-2">🎲</div>
+                  <p className="text-gray-600 mb-4">No decks found</p>
+                  <button
+                    onClick={() => {
+                      setShowAddToDeck(false)
+                      window.location.href = '/collection/decks'
+                    }}
+                    className="text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Create your first deck
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-700 mb-4">Select a deck to add this card to:</p>
+                  {decks.map((deck) => (
+                    <button
+                      key={deck.id}
+                      onClick={() => handleAddToDeck(deck.id)}
+                      disabled={addingToDeck === deck.id}
+                      className="w-full p-3 text-left bg-gray-50 hover:bg-gray-100 disabled:bg-gray-100 rounded-lg transition-colors flex items-center justify-between group"
+                    >
+                      <div>
+                        <h4 className="font-medium text-gray-900">{deck.name}</h4>
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <span className="capitalize">{deck.format}</span>
+                          <span>•</span>
+                          <span>{deck.cards?.length || 0} cards</span>
+                        </div>
+                      </div>
+                      {addingToDeck === deck.id ? (
+                        <div className="loading loading-spinner loading-sm"></div>
+                      ) : (
+                        <div className="text-gray-400 group-hover:text-gray-600 transition-colors">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Notification */}
+      {notification && (
+        <div className="fixed top-20 right-4 z-50 animate-in slide-in-from-right duration-300">
+          <div className={`px-4 py-3 rounded-lg shadow-lg font-medium text-white ${
+            notification.type === 'success' 
+              ? 'bg-green-600' 
+              : 'bg-red-600'
+          }`}>
+            {notification.message}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

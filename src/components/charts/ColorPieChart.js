@@ -1,0 +1,130 @@
+'use client'
+
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
+import { useMemo } from 'react'
+
+export default function ColorPieChart({ colorDistribution, colorPercentages }) {
+  const data = useMemo(() => {
+    // MTG color mapping with official mana symbol colors
+    const colorMap = {
+      W: { name: 'White', color: '#FFFBD5' }, // Official white mana symbol background
+      U: { name: 'Blue', color: '#0E68AB' }, // Official blue mana symbol background  
+      B: { name: 'Black', color: '#150B00' }, // Official black mana symbol background
+      R: { name: 'Red', color: '#D3202A' }, // Official red mana symbol background
+      G: { name: 'Green', color: '#00733E' }, // Official green mana symbol background
+      C: { name: 'Colorless', color: '#CAC5C0' } // Official colorless mana symbol background
+    }
+
+    return Object.entries(colorDistribution)
+      .filter(([_, count]) => count > 0)
+      .map(([colorKey, count]) => ({
+        name: colorMap[colorKey]?.name || colorKey,
+        value: count,
+        percentage: parseFloat(colorPercentages[colorKey] || 0),
+        color: colorMap[colorKey]?.color || '#9CA3AF'
+      }))
+      .sort((a, b) => b.value - a.value)
+  }, [colorDistribution, colorPercentages])
+
+  if (data.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full text-gray-500">
+        No color data available
+      </div>
+    )
+  }
+
+
+  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, value, percentage }) => {
+    if (percentage < 8) return null // Only show labels for slices > 8%
+    
+    const RADIAN = Math.PI / 180
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5
+    const x = cx + radius * Math.cos(-midAngle * RADIAN)
+    const y = cy + radius * Math.sin(-midAngle * RADIAN)
+
+    return (
+      <text 
+        x={x} 
+        y={y} 
+        fill="white" 
+        textAnchor={x > cx ? 'start' : 'end'} 
+        dominantBaseline="central"
+        className="text-xs font-semibold"
+        style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.7)' }}
+      >
+        {`${percentage.toFixed(0)}%`}
+      </text>
+    )
+  }
+
+  return (
+    <div className="w-full h-full chart-container" style={{ userSelect: 'none' }}>
+      <style>{`
+        .chart-container .recharts-wrapper {
+          outline: none !important;
+        }
+        .chart-container .recharts-wrapper * {
+          outline: none !important;
+        }
+        .chart-container .recharts-pie-sector {
+          outline: none !important;
+        }
+        .chart-container .recharts-pie-sector:focus {
+          outline: none !important;
+        }
+      `}</style>
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            labelLine={false}
+            label={renderCustomLabel}
+            outerRadius={70}
+            fill="#8884d8"
+            dataKey="value"
+            stroke="#fff"
+            strokeWidth={2}
+            style={{ outline: 'none' }}
+          >
+            {data.map((entry, index) => (
+              <Cell 
+                key={`cell-${index}`} 
+                fill={entry.color}
+                style={{ outline: 'none' }}
+              />
+            ))}
+          </Pie>
+          <Tooltip 
+            formatter={(value, name) => [`${value} cards (${data.find(d => d.name === name)?.percentage?.toFixed(1) || 0}%)`, name]}
+            labelStyle={{ color: '#374151' }}
+            contentStyle={{
+              backgroundColor: 'white',
+              border: '1px solid #d1d5db',
+              borderRadius: '8px',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+            }}
+          />
+          <Legend 
+            verticalAlign="middle" 
+            align="right"
+            layout="vertical"
+            iconType="circle"
+            wrapperStyle={{ 
+              paddingLeft: '20px',
+              fontSize: '12px',
+              lineHeight: '20px'
+            }}
+            formatter={(value, entry) => (
+              <span style={{ color: '#374151' }}>
+                {value} ({entry.payload.value})
+              </span>
+            )}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}

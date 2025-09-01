@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useSession, signOut } from 'next-auth/react'
 import { usePathname } from 'next/navigation'
 import { useRef } from 'react'
-import { MagnifyingGlassIcon, FolderIcon, CameraIcon } from '@heroicons/react/24/outline'
+import { MagnifyingGlassIcon, FolderIcon, CameraIcon, RectangleStackIcon } from '@heroicons/react/24/outline'
 
 export default function Navigation() {
   const { data: session, status } = useSession();
@@ -49,6 +49,14 @@ export default function Navigation() {
                     }`}>
                       <FolderIcon className="h-4 w-4" />
                       Collection
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/collection/decks" className={`flex items-center gap-2 ${
+                      pathname?.startsWith('/collection/decks') ? 'active' : ''
+                    }`}>
+                      <RectangleStackIcon className="h-4 w-4" />
+                      Decks
                     </Link>
                   </li>
                   <li>
@@ -101,6 +109,14 @@ export default function Navigation() {
                 }`}>
                   <FolderIcon className="h-4 w-4" />
                   Collection
+                </Link>
+              </li>
+              <li>
+                <Link href="/collection/decks" className={`flex items-center gap-2 ${
+                  pathname?.startsWith('/collection/decks') ? 'bg-primary/10 text-primary' : ''
+                }`}>
+                  <RectangleStackIcon className="h-4 w-4" />
+                  Decks
                 </Link>
               </li>
               <li>
