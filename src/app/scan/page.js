@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { redirect } from 'next/navigation'
 import Navigation from '@/components/Navigation'
 import CameraScanner from '@/components/CameraScanner'
 import CardSearch from '@/components/CardSearch'
-import { addCardToCollection } from '@/lib/collection-actions'
+import { addCardToCollection, getUserCollection } from '@/lib/collection-actions'
 import { CameraIcon, DevicePhoneMobileIcon } from '@heroicons/react/24/outline'
 
 export default function ScanPage() {
@@ -15,6 +15,8 @@ export default function ScanPage() {
   const [detectedCardName, setDetectedCardName] = useState('')
   const [showSearch, setShowSearch] = useState(false)
   const [notification, setNotification] = useState(null)
+  const [userCollection, setUserCollection] = useState([])
+  const [isLoadingCollection, setIsLoadingCollection] = useState(true)
 
   // Redirect to sign-in if not authenticated
   if (status === 'loading') {
@@ -29,14 +31,62 @@ export default function ScanPage() {
     redirect('/auth/signin')
   }
 
+  // Load user collection
+  useEffect(() => {
+    const loadCollection = async () => {
+      if (!session) return
+      
+      setIsLoadingCollection(true)
+      try {
+        const result = await getUserCollection()
+        if (result.success) {
+          setUserCollection(result.collection)
+        } else {
+          console.error('Failed to load collection:', result.error)
+        }
+      } catch (error) {
+        console.error('Error loading collection:', error)
+      } finally {
+        setIsLoadingCollection(false)
+      }
+    }
+
+    loadCollection()
+  }, [session])
+
   const handleAddToCollection = async (card) => {
     if (!session) return
     
     try {
       const result = await addCardToCollection(card)
       if (result.success) {
+        // Optimistic update: immediately add the card to the local state
+        const newCollectionItem = {
+          ...card,
+          quantity: 1,
+          condition: 'near_mint',
+          foil: false,
+          language: 'English',
+          notes: '',
+          acquiredDate: new Date(),
+          addedAt: new Date(),
+          updatedAt: new Date()
+        }
+        
+        setUserCollection(prevCollection => [...prevCollection, newCollectionItem])
+        
         setNotification({ type: 'success', message: 'Card added to collection!' })
         setTimeout(() => setNotification(null), 3000)
+        
+        // Background refresh to ensure data consistency
+        try {
+          const refreshResult = await getUserCollection()
+          if (refreshResult.success) {
+            setUserCollection(refreshResult.collection)
+          }
+        } catch (refreshError) {
+          console.warn('Background collection refresh failed:', refreshError)
+        }
       } else {
         setNotification({ type: 'error', message: result.error || 'Failed to add card' })
         setTimeout(() => setNotification(null), 3000)
@@ -237,6 +287,7 @@ export default function ScanPage() {
 
             <CardSearch
               onAddToCollection={handleAddToCollection}
+              userCollection={userCollection}
               initialQuery={detectedCardName}
               className="w-full"
             />

@@ -71,16 +71,38 @@ export default function SearchPage() {
     try {
       const result = await addCardToCollection(card, collectionData)
       if (result.success) {
+        // Optimistic update: immediately add the card to the local state
+        const newCollectionItem = {
+          ...card,
+          quantity: collectionData.quantity || 1,
+          condition: collectionData.condition || 'near_mint',
+          foil: collectionData.foil || false,
+          language: collectionData.language || 'English',
+          notes: collectionData.notes || '',
+          acquiredPrice: collectionData.acquiredPrice,
+          acquiredDate: collectionData.acquiredDate || new Date(),
+          addedAt: new Date(),
+          updatedAt: new Date()
+        }
+        
+        setUserCollection(prevCollection => [...prevCollection, newCollectionItem])
+        
         setNotification({ 
           type: 'success', 
           message: `${collectionData.foil ? 'Foil ' : ''}${card.name} added to collection!` 
         })
         setTimeout(() => setNotification(null), 3000)
         setShowAddModal(false)
-        // Refresh collection to show updated status
-        const refreshResult = await getUserCollection()
-        if (refreshResult.success) {
-          setUserCollection(refreshResult.collection)
+        
+        // Background refresh to ensure data consistency
+        try {
+          const refreshResult = await getUserCollection()
+          if (refreshResult.success) {
+            setUserCollection(refreshResult.collection)
+          }
+        } catch (refreshError) {
+          console.warn('Background collection refresh failed:', refreshError)
+          // Don't show error to user as optimistic update already happened
         }
       } else {
         setNotification({ type: 'error', message: result.error || 'Failed to add card' })

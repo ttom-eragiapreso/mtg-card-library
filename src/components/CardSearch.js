@@ -103,7 +103,15 @@ export default function CardSearch({
     }
   }
 
+  // For search results: match by card name (any version)
   const isCardInCollection = (card) => {
+    return userCollection.some(collectionCard => 
+      collectionCard.name === card.name
+    )
+  }
+  
+  // For versions modal: match by specific version
+  const isSpecificVersionInCollection = (card) => {
     return userCollection.some(collectionCard => {
       // Check multiverseid match (most specific)
       if (card.multiverseid && collectionCard.multiverseid) {
@@ -115,8 +123,7 @@ export default function CardSearch({
         return collectionCard.id === card.id
       }
       
-      // If neither card has multiverseid or id, match by name + set as fallback
-      // This ensures we don't match different versions of the same card name
+      // If neither card has multiverseid or id, match by name + set
       if (card.name && card.set && collectionCard.name && collectionCard.set) {
         return collectionCard.name === card.name && collectionCard.set === card.set
       }
@@ -282,7 +289,7 @@ export default function CardSearch({
                   card={card}
                   variant="compact"
                   onAddToCollection={onAddToCollection}
-                  isInCollection={isCardInCollection(card)}
+                  isInCollection={isSpecificVersionInCollection(card)}
                 />
               ))}
             </div>
