@@ -5,14 +5,14 @@ import { useMemo } from 'react'
 
 export default function ColorPieChart({ colorDistribution, colorPercentages }) {
   const data = useMemo(() => {
-    // MTG color mapping with authentic Magic colors
+    // MTG color mapping with official mana symbol colors
     const colorMap = {
-      W: { name: 'White', color: '#FFFBD5' }, // Pale cream like Plains
-      U: { name: 'Blue', color: '#0E68AB' }, // Deep blue like Islands
-      B: { name: 'Black', color: '#2C1810' }, // Dark brown-black like Swamps
-      R: { name: 'Red', color: '#D3202A' }, // Fiery red like Mountains
-      G: { name: 'Green', color: '#196834' }, // Forest green like Forests
-      C: { name: 'Colorless', color: '#D1D5DB' } // Light gray for artifacts
+      W: { name: 'White', color: '#FFFBD5' }, // Official white mana symbol background
+      U: { name: 'Blue', color: '#0E68AB' }, // Official blue mana symbol background  
+      B: { name: 'Black', color: '#150B00' }, // Official black mana symbol background
+      R: { name: 'Red', color: '#D3202A' }, // Official red mana symbol background
+      G: { name: 'Green', color: '#00733E' }, // Official green mana symbol background
+      C: { name: 'Colorless', color: '#CAC5C0' } // Official colorless mana symbol background
     }
 
     return Object.entries(colorDistribution)
