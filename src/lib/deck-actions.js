@@ -97,6 +97,7 @@ export async function getUserDecks() {
 // Get a specific deck by ID with full card data
 export async function getDeckById(deckId) {
   try {
+    console.log('=== GET DECK BY ID DEBUG ===', { deckId })
     const session = await getServerSession(authOptions)
     
     if (!session?.user?.id) {
@@ -105,6 +106,7 @@ export async function getDeckById(deckId) {
 
     const userId = new ObjectId(session.user.id)
     const usersCollection = await getUsersCollection()
+    console.log('User ID:', userId.toString())
 
     // Use aggregation to get deck with populated card data
     const result = await usersCollection.aggregate([
@@ -119,29 +121,57 @@ export async function getDeckById(deckId) {
       }
     ]).toArray()
 
+    console.log('Raw database query result:', JSON.stringify(result, null, 2))
+
     if (result.length === 0) {
       throw new Error('Deck not found')
     }
 
     const { deck, collection } = result[0]
+    console.log('Deck from database:', JSON.stringify(deck, null, 2))
+    console.log('User collection length:', collection?.length || 0)
+    console.log('Raw deck cards array:', JSON.stringify(deck.cards, null, 2))
 
     // Populate deck cards with full card data from collection
-    const populatedCards = deck.cards.map(deckCard => {
+    const populatedCards = deck.cards.map((deckCard, index) => {
+      console.log(`Processing card ${index + 1}/${deck.cards.length}:`, deckCard)
+      
       // For basic lands, cardData is already embedded
       if (deckCard.isBasicLand && deckCard.cardData) {
+        console.log(`  -> Basic land with embedded data: ${deckCard.cardData.name}`)
         return deckCard
       }
       
+      console.log(`  -> Looking for card in collection...`)
       const collectionCard = collection.find(c => 
         (deckCard.multiverseid && c.multiverseid === deckCard.multiverseid) ||
         (deckCard.cardId && c.id === deckCard.cardId)
       )
       
+      if (collectionCard) {
+        console.log(`  -> Found collection card: ${collectionCard.name}`)
+      } else {
+        console.log(`  -> Card NOT found in collection! Looking for:`, {
+          multiverseid: deckCard.multiverseid,
+          cardId: deckCard.cardId
+        })
+        console.log('  -> Collection card ids:', collection.map(c => ({ id: c.id, multiverseid: c.multiverseid, name: c.name })))
+      }
+      
       return {
         ...deckCard,
         cardData: collectionCard || null
       }
-    }).filter(card => card.cardData) // Remove cards not in collection
+    }).filter((card, index) => {
+      if (card.cardData === null) {
+        console.log(`  -> FILTERING OUT card ${index + 1} because cardData is null`)
+        return false
+      }
+      return true
+    }) // Filter out cards not in collection
+
+    console.log('Final populated cards count:', populatedCards.length)
+    console.log('Final populated cards:', populatedCards.map(c => ({ name: c.cardData?.name, quantity: c.quantity })))
 
     const populatedDeck = {
       ...deck,
@@ -150,6 +180,13 @@ export async function getDeckById(deckId) {
       updatedAt: deck.updatedAt?.toISOString(),
       lastPlayedAt: deck.lastPlayedAt?.toISOString()
     }
+
+    console.log('=== FINAL DECK RESULT ===', {
+      deckId: populatedDeck.id,
+      name: populatedDeck.name,
+      cardCount: populatedDeck.cards.length,
+      cards: populatedDeck.cards.map(c => ({ name: c.cardData?.name, quantity: c.quantity }))
+    })
 
     return {
       success: true,
@@ -248,18 +285,33 @@ export async function addCardToDeck(deckId, cardData, quantity = 1, category = '
     const userId = new ObjectId(session.user.id)
     const usersCollection = await getUsersCollection()
 
-    // Check if card exists in user's collection
-    const user = await usersCollection.findOne({
-      _id: userId,
-      $or: [
-        { 'collection.multiverseid': cardData.multiverseid },
-        { 'collection.id': cardData.id }
-      ]
-    })
+    // Check if card exists in user's collection (required for all non-basic cards)
+    const hasCollectionCard = await usersCollection.findOne(
+      {
+        _id: userId,
+        $or: [
+          { 'collection.multiverseid': cardData.multiverseid },
+          { 'collection.id': cardData.id }
+        ]
+      },
+      { projection: { _id: 1 } }
+    )
 
-    if (!user) {
+    if (!hasCollectionCard) {
       throw new Error('Card not found in your collection')
     }
+
+    // Get the current deck to check what cards already exist
+    const currentUser = await usersCollection.findOne(
+      { _id: userId },
+      { projection: { decks: { $elemMatch: { id: deckId } } } }
+    )
+    
+    if (!currentUser || !currentUser.decks || currentUser.decks.length === 0) {
+      throw new Error('Deck not found')
+    }
+    
+    const currentDeck = currentUser.decks[0]
 
     const deckCard = {
       collectionCardId: cardData.multiverseid || cardData.id,
@@ -269,46 +321,51 @@ export async function addCardToDeck(deckId, cardData, quantity = 1, category = '
       category
     }
 
-    // Check if card already exists in deck
-    const deckResult = await usersCollection.findOne({
-      _id: userId,
-      'decks.id': deckId,
-      $or: [
-        { 'decks.cards.multiverseid': cardData.multiverseid },
-        { 'decks.cards.cardId': cardData.id }
-      ]
-    })
-
-    if (deckResult) {
-      // Update quantity of existing card
-      const updateQuery = cardData.multiverseid 
-        ? { 'decks.$[deck].cards.$[card].multiverseid': cardData.multiverseid }
-        : { 'decks.$[deck].cards.$[card].cardId': cardData.id }
-
-      await usersCollection.updateOne(
-        { _id: userId },
-        {
-          $inc: { 'decks.$[deck].cards.$[card].quantity': quantity },
-          $set: { 'decks.$[deck].updatedAt': new Date() }
-        },
-        {
-          arrayFilters: [
-            { 'deck.id': deckId },
-            cardData.multiverseid 
-              ? { 'card.multiverseid': cardData.multiverseid }
-              : { 'card.cardId': cardData.id }
-          ]
-        }
-      )
+    // Check if this card already exists in the deck
+    const existingCard = currentDeck.cards.find(card => 
+      (card.multiverseid && card.multiverseid === cardData.multiverseid) ||
+      (card.cardId === cardData.id)
+    )
+    
+    if (existingCard) {
+      // Update existing card quantity
+      const updateFilter = {
+        _id: userId,
+        'decks.id': deckId
+      }
+      
+      // Add the specific card identification to the filter
+      if (cardData.multiverseid) {
+        updateFilter['decks.cards.multiverseid'] = cardData.multiverseid
+      } else {
+        updateFilter['decks.cards.cardId'] = cardData.id
+      }
+      
+      const updateQuery = {
+        $inc: { 'decks.$.cards.$[card].quantity': quantity },
+        $set: { 'decks.$.updatedAt': new Date() }
+      }
+      
+      const updateOptions = {
+        arrayFilters: cardData.multiverseid 
+          ? [{ 'card.multiverseid': cardData.multiverseid }]
+          : [{ 'card.cardId': cardData.id }]
+      }
+      
+      await usersCollection.updateOne(updateFilter, updateQuery, updateOptions)
     } else {
-      // Add new card to deck
-      await usersCollection.updateOne(
+      // Add new card
+      const pushResult = await usersCollection.updateOne(
         { _id: userId, 'decks.id': deckId },
         {
           $push: { 'decks.$.cards': deckCard },
           $set: { 'decks.$.updatedAt': new Date() }
         }
       )
+      
+      if (pushResult.modifiedCount === 0) {
+        throw new Error('Failed to add card to deck - deck might not exist')
+      }
     }
 
     revalidatePath(`/collection/decks/${deckId}`)
@@ -332,22 +389,45 @@ export async function removeCardFromDeck(deckId, cardData, quantity = null) {
     const userId = new ObjectId(session.user.id)
     const usersCollection = await getUsersCollection()
 
+    console.log('Removing card from deck:', { deckId, cardData, quantity })
+
+    // Handle different card data structures
+    let pullQuery = {}
+    let arrayFilter = {}
+    
+    if (cardData.isBasicLand || cardData.cardId?.startsWith('basic-')) {
+      // Basic land removal
+      pullQuery = { cardId: cardData.cardId }
+      arrayFilter = { 'card.cardId': cardData.cardId }
+    } else if (cardData.multiverseid) {
+      // Regular card with multiverseid
+      pullQuery = { multiverseid: cardData.multiverseid }
+      arrayFilter = { 'card.multiverseid': cardData.multiverseid }
+    } else if (cardData.cardId || cardData.id) {
+      // Regular card with cardId/id
+      const cardId = cardData.cardId || cardData.id
+      pullQuery = { cardId: cardId }
+      arrayFilter = { 'card.cardId': cardId }
+    } else {
+      throw new Error('Invalid card data structure for removal')
+    }
+
+    console.log('Using pullQuery:', pullQuery)
+    console.log('Using arrayFilter:', arrayFilter)
+
     if (quantity === null) {
       // Remove card completely
-      const pullQuery = cardData.multiverseid 
-        ? { multiverseid: cardData.multiverseid }
-        : { cardId: cardData.id }
-
-      await usersCollection.updateOne(
+      const result = await usersCollection.updateOne(
         { _id: userId, 'decks.id': deckId },
         {
           $pull: { 'decks.$.cards': pullQuery },
           $set: { 'decks.$.updatedAt': new Date() }
         }
       )
+      console.log('Remove card result:', result)
     } else {
       // Decrease quantity
-      await usersCollection.updateOne(
+      const updateResult = await usersCollection.updateOne(
         { _id: userId },
         {
           $inc: { 'decks.$[deck].cards.$[card].quantity': -quantity },
@@ -356,21 +436,21 @@ export async function removeCardFromDeck(deckId, cardData, quantity = null) {
         {
           arrayFilters: [
             { 'deck.id': deckId },
-            cardData.multiverseid 
-              ? { 'card.multiverseid': cardData.multiverseid }
-              : { 'card.cardId': cardData.id }
+            arrayFilter
           ]
         }
       )
+      console.log('Decrease quantity result:', updateResult)
 
       // Remove cards with 0 or negative quantity
-      await usersCollection.updateOne(
+      const cleanupResult = await usersCollection.updateOne(
         { _id: userId, 'decks.id': deckId },
         {
           $pull: { 'decks.$.cards': { quantity: { $lte: 0 } } },
           $set: { 'decks.$.updatedAt': new Date() }
         }
       )
+      console.log('Cleanup result:', cleanupResult)
     }
 
     revalidatePath(`/collection/decks/${deckId}`)
@@ -463,6 +543,18 @@ export async function addBasicLandsToDeck(deckId, basicLands) {
       }
     }
 
+    // Get the current deck to check what cards already exist
+    const currentUser = await usersCollection.findOne(
+      { _id: userId },
+      { projection: { decks: { $elemMatch: { id: deckId } } } }
+    )
+    
+    if (!currentUser || !currentUser.decks || currentUser.decks.length === 0) {
+      throw new Error('Deck not found')
+    }
+    
+    const currentDeck = currentUser.decks[0]
+
     // Process each basic land to add
     for (const { landName, quantity } of basicLands) {
       if (!basicLandData[landName]) {
@@ -471,65 +563,57 @@ export async function addBasicLandsToDeck(deckId, basicLands) {
       }
 
       const landData = basicLandData[landName]
-      const deckCard = {
-        collectionCardId: `basic-${landName.toLowerCase()}`,
-        multiverseid: null,
-        cardId: `basic-${landName.toLowerCase()}`,
-        quantity,
-        category: 'mainboard',
-        isBasicLand: true // Flag to identify basic lands
-      }
-
-      // Check if this basic land already exists in deck
-      const existingResult = await usersCollection.findOne({
-        _id: userId,
-        'decks.id': deckId,
-        'decks.cards.cardId': `basic-${landName.toLowerCase()}`
-      })
-
-      if (existingResult) {
-        // Update quantity of existing basic land
+      const basicLandId = `basic-${landName.toLowerCase()}`
+      
+      // Check if this basic land already exists in the deck
+      const existingCard = currentDeck.cards.find(card => card.cardId === basicLandId)
+      
+      if (existingCard) {
+        // Update existing card quantity
         await usersCollection.updateOne(
-          { _id: userId },
           {
-            $inc: { 'decks.$[deck].cards.$[card].quantity': quantity },
-            $set: { 'decks.$[deck].updatedAt': new Date() }
+            _id: userId,
+            'decks.id': deckId,
+            'decks.cards.cardId': basicLandId
           },
           {
-            arrayFilters: [
-              { 'deck.id': deckId },
-              { 'card.cardId': `basic-${landName.toLowerCase()}` }
-            ]
+            $inc: { 'decks.$.cards.$[card].quantity': quantity },
+            $set: { 
+              'decks.$.updatedAt': new Date(),
+              'decks.$.cards.$[card].cardData': landData
+            }
+          },
+          {
+            arrayFilters: [{ 'card.cardId': basicLandId }]
           }
         )
       } else {
-        // Add new basic land to deck
-        await usersCollection.updateOne(
+        // Add new card
+        const deckCard = {
+          collectionCardId: basicLandId,
+          multiverseid: null,
+          cardId: basicLandId,
+          quantity,
+          category: 'mainboard',
+          isBasicLand: true,
+          cardData: landData // Embed card data directly
+        }
+        
+        const pushResult = await usersCollection.updateOne(
           { _id: userId, 'decks.id': deckId },
           {
             $push: { 'decks.$.cards': deckCard },
             $set: { 'decks.$.updatedAt': new Date() }
           }
         )
-      }
-
-      // Also add the basic land data to a virtual collection for deck analytics
-      // We'll store basic land templates in the deck cards with full card data
-      await usersCollection.updateOne(
-        { _id: userId },
-        {
-          $set: {
-            [`decks.$[deck].cards.$[card].cardData`]: landData,
-            'decks.$[deck].updatedAt': new Date()
-          }
-        },
-        {
-          arrayFilters: [
-            { 'deck.id': deckId },
-            { 'card.cardId': `basic-${landName.toLowerCase()}` }
-          ]
+        
+        if (pushResult.modifiedCount === 0) {
+          throw new Error(`Failed to add ${landName} to deck`)
         }
-      )
+        
+        // Update current deck state for next iteration
+        currentDeck.cards.push(deckCard)
+      }
     }
 
     revalidatePath(`/collection/decks/${deckId}`)
