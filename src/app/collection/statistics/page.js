@@ -576,7 +576,7 @@ export default function CollectionStatisticsPage() {
                 </button>
               </div>
 
-              <div className="max-h-96 overflow-y-auto">
+              <div className="max-h-[70vh] overflow-y-auto">
                 <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                   {modalCards.map((card, index) => (
                     <div key={`${card.name}-${index}`} className="relative group">
