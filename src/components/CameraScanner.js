@@ -113,46 +113,49 @@ export default function CameraScanner({
     }
   }
 
-  const processImage = async (_imageFile) => {
-    // In a real implementation, this would:
-    // 1. Send image to an OCR/image recognition service
-    // 2. Extract card name from the image
-    // 3. Search for the card in the MTG API
-    
-    // For demo purposes, we'll simulate card detection
-    setTimeout(() => {
-      // Simulate successful card detection
-      const mockCardName = 'Lightning Bolt' // In reality, this would come from image recognition
+  const processImage = async (imageFile) => {
+    try {
+      console.log('Processing image for OCR...', imageFile)
       
-      if (onCardDetected) {
-        onCardDetected(mockCardName)
+      const formData = new FormData()
+      formData.append('image', imageFile)
+
+      const response = await fetch('/api/cards/scan', {
+        method: 'POST',
+        body: formData
+      })
+
+      const result = await response.json()
+      
+      console.log('OCR API response:', result)
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Image recognition failed')
       }
-      
-      setIsProcessing(false)
-    }, 2000)
 
-    // Real implementation would look like:
-    /*
-    const formData = new FormData()
-    formData.append('image', imageFile)
+      if (!result.success) {
+        throw new Error(result.error || 'No card detected in image')
+      }
 
-    const response = await fetch('/api/cards/scan', {
-      method: 'POST',
-      body: formData
-    })
+      // Show OCR debug info in development
+      if (process.env.NODE_ENV === 'development' && result.ocr) {
+        console.log('OCR Debug Info:', {
+          engine: result.ocr.engine,
+          processingTime: result.ocr.processingTime,
+          confidence: result.confidence,
+          extractedText: result.ocr.allText
+        })
+      }
 
-    const result = await response.json()
-    
-    if (!response.ok) {
-      throw new Error(result.error || 'Image recognition failed')
+      if (result.cardName && onCardDetected) {
+        onCardDetected(result.cardName)
+      } else {
+        throw new Error('No card name extracted from image')
+      }
+    } catch (error) {
+      console.error('Image processing error:', error)
+      throw error
     }
-
-    if (result.cardName && onCardDetected) {
-      onCardDetected(result.cardName)
-    } else {
-      throw new Error('No card detected in image')
-    }
-    */
   }
 
   useEffect(() => {
