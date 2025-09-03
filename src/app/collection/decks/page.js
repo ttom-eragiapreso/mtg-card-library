@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { redirect } from 'next/navigation'
 import { getUserDecks, createDeck, deleteDeck } from '@/lib/deck-actions'
-import { PlusIcon, TrashIcon, EyeIcon, PencilIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, TrashIcon, EyeIcon, PencilIcon, RectangleStackIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outline'
 import Navigation from '@/components/Navigation'
 import Link from 'next/link'
 
@@ -257,50 +257,65 @@ export default function DecksPage() {
                 </div>
 
                 {/* Hover Overlay */}
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-75 transition-all duration-300">
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-4 flex flex-col justify-between text-white">
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
+                  <div className="absolute inset-0 p-6 flex flex-col justify-between text-white">
                     {/* Top Section - Deck Info */}
                     <div>
-                      <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-start justify-between mb-6">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-lg truncate">
+                          <h3 className="font-bold text-2xl mb-2 truncate tracking-wide">
                             {deck.name}
                           </h3>
-                          <p className="text-sm text-gray-200 capitalize">
-                            {deck.format}
-                          </p>
+                          <div className="inline-flex items-center px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full">
+                            <span className="text-sm font-medium capitalize tracking-wide">
+                              {deck.format}
+                            </span>
+                          </div>
                         </div>
                         <button
                           onClick={() => handleDeleteDeck(deck.id, deck.name)}
-                          className="p-2 text-gray-300 hover:text-red-400 transition-colors duration-200"
+                          className="p-3 bg-red-500/20 hover:bg-red-500/40 backdrop-blur-sm rounded-full transition-all duration-200 hover:scale-110"
                           title="Delete deck"
                         >
-                          <TrashIcon className="w-4 h-4" />
+                          <TrashIcon className="w-5 h-5 text-red-300" />
                         </button>
                       </div>
 
                       {deck.description && (
-                        <p className="text-sm text-gray-200 mb-4 line-clamp-2">
-                          {deck.description}
-                        </p>
+                        <div className="mb-6">
+                          <p className="text-sm text-gray-200 leading-relaxed line-clamp-2 font-light">
+                            {deck.description}
+                          </p>
+                        </div>
                       )}
 
                       {/* Deck Stats */}
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-300">Cards:</span>
-                          <span className="font-medium">{deck.cards?.length || 0}</span>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <RectangleStackIcon className="w-4 h-4 text-blue-300" />
+                            <span className="text-sm font-medium text-gray-300">Cards</span>
+                          </div>
+                          <span className="font-semibold text-lg">{deck.cards?.length || 0}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-300">Created:</span>
-                          <span className="font-medium">
+                        
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <CalendarIcon className="w-4 h-4 text-green-300" />
+                            <span className="text-sm font-medium text-gray-300">Created</span>
+                          </div>
+                          <span className="font-medium text-sm">
                             {new Date(deck.createdAt).toLocaleDateString()}
                           </span>
                         </div>
+                        
                         {deck.lastPlayedAt && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-300">Last played:</span>
-                            <span className="font-medium">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <ClockIcon className="w-4 h-4 text-purple-300" />
+                              <span className="text-sm font-medium text-gray-300">Last played</span>
+                            </div>
+                            <span className="font-medium text-sm">
                               {new Date(deck.lastPlayedAt).toLocaleDateString()}
                             </span>
                           </div>
