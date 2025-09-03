@@ -126,6 +126,12 @@ export default function CollectionCard({
     }
   }
 
+  const handleModalBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      setShowAddToDeck(false)
+    }
+  }
+
   const getSetDisplayName = (card) => {
     // Use setName if available, otherwise fall back to set code
     return card.setName || card.set || 'Unknown Set'
@@ -358,7 +364,10 @@ export default function CollectionCard({
       
       {/* Add to Deck Modal */}
       {showAddToDeck && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={handleModalBackdropClick}
+        >
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[80vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
