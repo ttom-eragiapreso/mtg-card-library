@@ -11,7 +11,8 @@ import {
   TrashIcon, 
   PlusIcon,
   ArrowLeftIcon,
-  ChartPieIcon
+  ChartPieIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline'
 import Navigation from '@/components/Navigation'
 import Link from 'next/link'
@@ -38,6 +39,7 @@ export default function DeckViewPage() {
   const [isUpdating, setIsUpdating] = useState(false)
   const [isAddingLands, setIsAddingLands] = useState(false)
   const [shouldResetLandsForm, setShouldResetLandsForm] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Edit deck form data
   const [editData, setEditData] = useState({
@@ -277,6 +279,13 @@ export default function DeckViewPage() {
     C: 'Colorless'
   }
 
+  // Filter cards based on search query
+  const filteredCards = deck?.cards?.filter(deckCard => {
+    if (!searchQuery.trim()) return true
+    const cardName = deckCard.cardData?.name || ''
+    return cardName.toLowerCase().includes(searchQuery.toLowerCase())
+  }) || []
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -454,10 +463,40 @@ export default function DeckViewPage() {
         {/* Deck Cards */}
         <div className="bg-white rounded-xl shadow-md">
           <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
               <h3 className="text-lg font-bold text-gray-900">
                 Cards in Deck ({analytics?.totalCards || deck.cards.reduce((sum, card) => sum + card.quantity, 0)})
+                {searchQuery && (
+                  <span className="text-sm font-normal text-gray-500 ml-2">
+                    ({filteredCards.length} {filteredCards.length === 1 ? 'match' : 'matches'})
+                  </span>
+                )}
               </h3>
+              
+              {/* Search Input */}
+              <div className="relative flex-shrink-0 w-full sm:w-64">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search cards..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                    title="Clear search"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -467,9 +506,21 @@ export default function DeckViewPage() {
               <h4 className="text-lg font-medium text-gray-900 mb-2">No cards in deck</h4>
               <p className="text-gray-600 mb-6">Add cards from your collection to build your deck</p>
             </div>
+          ) : filteredCards.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-4xl mb-4">🔍</div>
+              <h4 className="text-lg font-medium text-gray-900 mb-2">No cards found</h4>
+              <p className="text-gray-600 mb-6">No cards match your search "{searchQuery}"</p>
+              <button
+                onClick={() => setSearchQuery('')}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Clear Search
+              </button>
+            </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {deck.cards.map((deckCard, index) => (
+              {filteredCards.map((deckCard, index) => (
                 <div key={`${deckCard.collectionCardId}-${index}`} className="p-4 hover:bg-gray-50">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
