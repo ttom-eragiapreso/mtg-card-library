@@ -258,27 +258,27 @@ export default function DecksPage() {
 
                 {/* Hover Overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
-                  <div className="absolute inset-0 p-6 flex flex-col justify-between text-white">
-                    {/* Top Section - Deck Info */}
-                    <div>
-                      <div className="flex items-start justify-between mb-6">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-2xl mb-2 truncate tracking-wide">
-                            {deck.name}
-                          </h3>
-                          <div className="inline-flex items-center px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full">
-                            <span className="text-sm font-medium capitalize tracking-wide">
-                              {deck.format}
-                            </span>
-                          </div>
+                  <div className="absolute inset-0 p-6 flex flex-col justify-end text-white">
+                    {/* Delete Button - Top Right */}
+                    <button
+                      onClick={() => handleDeleteDeck(deck.id, deck.name)}
+                      className="absolute top-6 right-6 p-3 bg-red-500/20 hover:bg-red-500/40 backdrop-blur-sm rounded-full transition-all duration-200 hover:scale-110"
+                      title="Delete deck"
+                    >
+                      <TrashIcon className="w-5 h-5 text-red-300" />
+                    </button>
+                    
+                    {/* Bottom Section - Deck Info */}
+                    <div className="mb-16">
+                      <div className="mb-6">
+                        <h3 className="font-bold text-2xl mb-3 truncate tracking-wide">
+                          {deck.name}
+                        </h3>
+                        <div className="inline-flex items-center px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full">
+                          <span className="text-sm font-medium capitalize tracking-wide">
+                            {deck.format}
+                          </span>
                         </div>
-                        <button
-                          onClick={() => handleDeleteDeck(deck.id, deck.name)}
-                          className="p-3 bg-red-500/20 hover:bg-red-500/40 backdrop-blur-sm rounded-full transition-all duration-200 hover:scale-110"
-                          title="Delete deck"
-                        >
-                          <TrashIcon className="w-5 h-5 text-red-300" />
-                        </button>
                       </div>
 
                       {deck.description && (
