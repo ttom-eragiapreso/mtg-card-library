@@ -4,9 +4,7 @@ const nextConfig = {
     // Enable server components
     serverComponentsExternalPackages: [
       'tesseract.js',
-      'sharp',
-      '@gutenye/ocr-node',
-      'onnxruntime-node'
+      'sharp'
     ],
   },
   webpack: (config, { isServer }) => {
