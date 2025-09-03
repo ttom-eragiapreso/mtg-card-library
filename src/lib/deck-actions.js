@@ -53,8 +53,8 @@ export async function createDeck(deckData) {
   }
 }
 
-// Get all user decks
-export async function getUserDecks() {
+// Get all user decks with optional card presence checking
+export async function getUserDecks(cardToCheck = null) {
   try {
     const session = await getServerSession(authOptions)
     
@@ -76,13 +76,39 @@ export async function getUserDecks() {
 
     const decks = user.decks || []
 
-    // Serialize dates for client components
-    const serializedDecks = decks.map(deck => ({
-      ...deck,
-      createdAt: deck.createdAt?.toISOString(),
-      updatedAt: deck.updatedAt?.toISOString(),
-      lastPlayedAt: deck.lastPlayedAt?.toISOString()
-    }))
+    // Check if each deck contains the specified card
+    const serializedDecks = decks.map(deck => {
+      let containsCard = false
+      
+      if (cardToCheck) {
+        // Check if this deck contains the card
+        containsCard = deck.cards.some(deckCard => {
+          // Handle basic lands
+          if (cardToCheck.isBasicLand && deckCard.cardId === cardToCheck.cardId) {
+            return true
+          }
+          
+          // Handle regular cards
+          if (cardToCheck.multiverseid && deckCard.multiverseid === cardToCheck.multiverseid) {
+            return true
+          }
+          
+          if (cardToCheck.id && deckCard.cardId === cardToCheck.id) {
+            return true
+          }
+          
+          return false
+        })
+      }
+      
+      return {
+        ...deck,
+        containsCard,
+        createdAt: deck.createdAt?.toISOString(),
+        updatedAt: deck.updatedAt?.toISOString(),
+        lastPlayedAt: deck.lastPlayedAt?.toISOString()
+      }
+    })
 
     return {
       success: true,

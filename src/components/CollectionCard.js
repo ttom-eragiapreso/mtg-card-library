@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useModal } from './ModalProvider'
-import { TrashIcon, InformationCircleIcon, RectangleStackIcon } from '@heroicons/react/24/outline'
+import { TrashIcon, InformationCircleIcon, RectangleStackIcon, CheckIcon } from '@heroicons/react/24/outline'
 import { getUserDecks, addCardToDeck } from '@/lib/deck-actions'
 
 export default function CollectionCard({ 
@@ -31,7 +31,8 @@ export default function CollectionCard({
       if (showAddToDeck && !loadingDecks) {
         setLoadingDecks(true)
         try {
-          const result = await getUserDecks()
+          // Pass the current card to check which decks already contain it
+          const result = await getUserDecks(card)
           if (result.success) {
             setDecks(result.decks)
           } else {
@@ -46,7 +47,7 @@ export default function CollectionCard({
     }
 
     loadDecks()
-  }, [showAddToDeck])
+  }, [showAddToDeck, card])
 
   const getImageUrl = () => {
     // Priority order for image sources
@@ -422,12 +423,21 @@ export default function CollectionCard({
                       disabled={addingToDeck === deck.id}
                       className="w-full p-3 text-left bg-gray-50 hover:bg-gray-100 disabled:bg-gray-100 rounded-lg transition-colors flex items-center justify-between group"
                     >
-                      <div>
-                        <h4 className="font-medium text-gray-900">{deck.name}</h4>
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <span className="capitalize">{deck.format}</span>
-                          <span>•</span>
-                          <span>{deck.cards?.length || 0} cards</span>
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium text-gray-900">{deck.name}</h4>
+                            {deck.containsCard && (
+                              <div className="flex items-center justify-center w-5 h-5 bg-green-100 rounded-full">
+                                <CheckIcon className="w-3 h-3 text-green-600" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <span className="capitalize">{deck.format}</span>
+                            <span>•</span>
+                            <span>{deck.cards?.length || 0} cards</span>
+                          </div>
                         </div>
                       </div>
                       {addingToDeck === deck.id ? (
