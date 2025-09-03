@@ -119,27 +119,58 @@ export default function BasicLandsAdder({ onAddLands, isLoading = false, shouldR
   }, [shouldReset, onResetComplete])
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-semibold text-gray-900">Quick Add Basic Lands</h3>
-          {totalLands > 0 && (
-            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-              {totalLands} selected
-            </span>
-          )}
-        </div>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-gray-900">Quick Add Basic Lands</h3>
+        {totalLands > 0 && (
+          <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+            {totalLands} selected
+          </span>
+        )}
+      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-2">
-        <div className="flex items-center gap-2 flex-wrap">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Desktop: Single row layout */}
+        <div className="hidden sm:grid sm:grid-cols-5 gap-3">
           {BASIC_LANDS.map((land) => (
             <div
               key={land.name}
-              className="flex items-center gap-2 p-2 rounded-lg border border-gray-200 bg-gray-50 min-w-[100px]"
+              className="flex flex-col items-center gap-2 p-3 rounded-lg border border-gray-200 bg-gray-50"
             >
-              <div className={`w-6 h-6 rounded-full ${land.bgColor} flex items-center justify-center border border-gray-300 flex-shrink-0`}>
+              <div className={`w-8 h-8 rounded-full ${land.bgColor} flex items-center justify-center border border-gray-300`}>
+                <i className={`${land.keyruneClass} ms-cost ${land.textColor}`} style={{fontSize: '16px'}}></i>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="20"
+                value={quantities[land.name]}
+                onChange={(e) => setQuantity(land.name, e.target.value)}
+                className={`w-full h-2 rounded-lg appearance-none cursor-pointer slider-${land.color.toLowerCase()}`}
+                style={{
+                  background: quantities[land.name] > 0 
+                    ? `linear-gradient(to right, ${getSliderColor(land.color)} 0%, ${getSliderColor(land.color)} ${(quantities[land.name] / 20) * 100}%, #d1d5db ${(quantities[land.name] / 20) * 100}%, #d1d5db 100%)`
+                    : '#d1d5db'
+                }}
+              />
+              <span className="text-sm font-medium text-gray-700 min-h-[20px]">
+                {quantities[land.name] > 0 ? quantities[land.name] : ''}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Mobile: Compact horizontal layout */}
+        <div className="sm:hidden space-y-2">
+          {BASIC_LANDS.map((land) => (
+            <div
+              key={land.name}
+              className="flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50"
+            >
+              <div className={`w-7 h-7 rounded-full ${land.bgColor} flex items-center justify-center border border-gray-300 flex-shrink-0`}>
                 <i className={`${land.keyruneClass} ms-cost ${land.textColor}`} style={{fontSize: '14px'}}></i>
               </div>
-              <div className="flex-1 flex items-center gap-2">
+              <div className="flex-1 flex items-center gap-3">
                 <input
                   type="range"
                   min="0"
@@ -153,7 +184,7 @@ export default function BasicLandsAdder({ onAddLands, isLoading = false, shouldR
                       : '#d1d5db'
                   }}
                 />
-                <span className="text-xs font-medium text-gray-600 w-4 text-center">
+                <span className="text-sm font-medium text-gray-700 w-6 text-center">
                   {quantities[land.name] > 0 ? quantities[land.name] : ''}
                 </span>
               </div>
@@ -224,21 +255,21 @@ export default function BasicLandsAdder({ onAddLands, isLoading = false, shouldR
           }
         `}</style>
 
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-center">
           <button
             type="submit"
             disabled={totalLands === 0 || isLoading}
-            className="px-2.5 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2 shadow-sm"
           >
             {isLoading ? (
               <>
-                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 Adding...
               </>
             ) : (
               <>
-                <PlusIcon className="w-3 h-3" />
-                Add
+                <PlusIcon className="w-4 h-4" />
+                Add to Deck
               </>
             )}
           </button>

@@ -19,11 +19,13 @@ import ManaCurveChart from '@/components/charts/ManaCurveChart'
 import ColorPieChart from '@/components/charts/ColorPieChart'
 import TypePieChart from '@/components/charts/TypePieChart'
 import BasicLandsAdder from '@/components/BasicLandsAdder'
+import { useModal } from '@/components/ModalProvider'
 
 export default function DeckViewPage() {
   const { data: session, status } = useSession()
   const params = useParams()
   const deckId = params.id
+  const { showImageModal } = useModal()
 
   const [deck, setDeck] = useState(null)
   const [analytics, setAnalytics] = useState(null)
@@ -191,6 +193,65 @@ export default function DeckViewPage() {
       setTimeout(() => setNotification(null), 3000)
     } finally {
       setIsAddingLands(false)
+    }
+  }
+
+  // Helper function to get image URL for a card
+  const getCardImageUrl = (deckCard) => {
+    const cardData = deckCard.cardData
+    if (!cardData) return null
+
+    // For basic lands, we don't have actual images
+    if (deckCard.isBasicLand) {
+      return null
+    }
+
+    // Priority order for image sources
+    const imageSources = []
+    
+    // 1. Use imageSources array if available
+    if (cardData.imageSources && cardData.imageSources.length > 0) {
+      return cardData.imageSources[0]
+    }
+    
+    // 2. Direct imageUrl from MTG API
+    if (cardData.imageUrl) {
+      imageSources.push(cardData.imageUrl)
+    }
+    
+    // 3. Gatherer images using multiverseid
+    if (cardData.multiverseid) {
+      imageSources.push(`https://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=${cardData.multiverseid}&type=card`)
+    }
+    
+    // 4. Alternative Gatherer URL format
+    if (cardData.multiverseid) {
+      imageSources.push(`http://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=${cardData.multiverseid}&type=card`)
+    }
+    
+    // 5. Scryfall API fallback (if we have set and number)
+    if (cardData.set && cardData.number) {
+      const setCode = cardData.set.toLowerCase()
+      const cardNumber = cardData.number.toLowerCase().replace(/[^a-z0-9]/g, '')
+      imageSources.push(`https://api.scryfall.com/cards/${setCode}/${cardNumber}?format=image`)
+    }
+    
+    // Return first available source
+    return imageSources[0] || null
+  }
+
+  // Handle card image click
+  const handleCardImageClick = (deckCard, e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    const imageUrl = getCardImageUrl(deckCard)
+    if (imageUrl && deckCard.cardData) {
+      showImageModal({
+        imageUrl,
+        altText: deckCard.cardData.name,
+        cardName: deckCard.cardData.name
+      })
     }
   }
 
@@ -433,13 +494,27 @@ export default function DeckViewPage() {
                           <img
                             src={deckCard.cardData.imageSources[0]}
                             alt={deckCard.cardData.name}
-                            className="w-12 h-16 object-cover rounded border"
+                            className="w-12 h-16 object-cover rounded border cursor-pointer hover:brightness-110 hover:scale-105 transition-all duration-200"
+                            onClick={(e) => handleCardImageClick(deckCard, e)}
+                            title={`Click to view ${deckCard.cardData.name} enlarged`}
                             onError={(e) => {
                               // Try next image source
                               const nextSrc = deckCard.cardData.imageSources[1]
                               if (nextSrc && e.target.src !== nextSrc) {
                                 e.target.src = nextSrc
                               }
+                            }}
+                          />
+                        ) : getCardImageUrl(deckCard) ? (
+                          <img
+                            src={getCardImageUrl(deckCard)}
+                            alt={deckCard.cardData?.name || 'Card'}
+                            className="w-12 h-16 object-cover rounded border cursor-pointer hover:brightness-110 hover:scale-105 transition-all duration-200"
+                            onClick={(e) => handleCardImageClick(deckCard, e)}
+                            title={`Click to view ${deckCard.cardData?.name} enlarged`}
+                            onError={(e) => {
+                              // Hide image if it fails to load
+                              e.target.style.display = 'none'
                             }}
                           />
                         ) : (
