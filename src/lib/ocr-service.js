@@ -1,16 +1,17 @@
 // OCR Service - Abstraction layer for different OCR engines
 // This allows easy switching between OCR providers without changing the API
 
-import { GutenOCR } from './ocr-engines/guten-ocr.js'
-// import { TesseractOCR } from './ocr-engines/tesseract-ocr.js' // Future implementation
+// import { GutenOCR } from './ocr-engines/guten-ocr.js' // Removed due to Sharp dependency issues
+import { TesseractOCR } from './ocr-engines/tesseract-ocr.js'
 
 // Configuration - easily change OCR engine here
-const OCR_ENGINE = process.env.OCR_ENGINE || 'guten' // 'guten' | 'tesseract'
+// Using Tesseract as default (Guten OCR removed due to Sharp dependency issues)
+const OCR_ENGINE = process.env.OCR_ENGINE || 'tesseract' // 'tesseract'
 
 // OCR Engine registry
 const engines = {
-  guten: GutenOCR,
-  // tesseract: TesseractOCR, // Future
+  // guten: GutenOCR, // Removed due to Sharp dependency issues
+  tesseract: TesseractOCR,
 }
 
 // Get the configured OCR engine
@@ -89,10 +90,14 @@ export class OCRService {
       return ''
     }
 
+    console.log('Parsing card name from OCR text:', { originalText: text })
+
     // Clean up the text
     const lines = text.split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0)
+    
+    console.log('Text lines after cleanup:', lines)
 
     // MTG card name parsing logic
     for (let line of lines) {
@@ -111,6 +116,11 @@ export class OCRService {
         continue
       }
 
+      // Skip lines that are mostly numbers (OCR errors)
+      if (/\d/.test(line) && line.replace(/[^0-9]/g, '').length > line.replace(/[^a-zA-Z]/g, '').length) {
+        continue
+      }
+
       // Skip common non-name text patterns
       const skipPatterns = [
         /^\d+\/\d+$/, // Power/toughness like "2/2"
@@ -122,37 +132,51 @@ export class OCRService {
         /^planeswalker/i, // Type line starting with "planeswalker"
         /^land/i, // Type line starting with "land"
         /^legendary/i, // Type line starting with "legendary"
+        /^basic/i, // Type line starting with "basic"
         /^\d+$/, // Just numbers (CMC)
         /^tap:/i, // Ability text starting with "tap:"
         /^add/i, // Ability text starting with "add"
         /^when/i, // Ability text starting with "when"
         /^if/i, // Ability text starting with "if"
+        /^enter/i, // Ability text starting with "enter"
+        /^destroy/i, // Ability text starting with "destroy"
+        /^target/i, // Ability text starting with "target"
+        /^you may/i, // Ability text starting with "you may"
       ]
 
       if (skipPatterns.some(pattern => pattern.test(line))) {
         continue
       }
 
-      // Clean the line
+      // Clean the line more aggressively
       let cardName = line
         .replace(/[{}]/g, '') // Remove mana symbols
-        .replace(/^\W+|\W+$/g, '') // Remove leading/trailing non-word chars
+        .replace(/\d/g, '') // Remove ALL numbers (MTG card names never have digits)
+        .replace(/[^a-zA-Z\s,''-]/g, '') // Keep only letters, spaces, commas, apostrophes, hyphens
         .replace(/\s+/g, ' ') // Normalize whitespace
+        .replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, '') // Remove leading/trailing non-letters
         .trim()
 
       // If we have a reasonable card name, return it
       if (cardName.length >= 3 && /[a-zA-Z]/.test(cardName)) {
+        console.log('Found card name:', { originalLine: line, cleanedName: cardName })
         return cardName
       }
     }
 
-    // Fallback: return the first non-empty line, cleaned
+    // Fallback: return the first non-empty line, aggressively cleaned
     if (lines.length > 0) {
-      return lines[0]
-        .replace(/[{}]/g, '')
-        .replace(/^\W+|\W+$/g, '')
-        .replace(/\s+/g, ' ')
+      let fallback = lines[0]
+        .replace(/[{}]/g, '') // Remove mana symbols
+        .replace(/\d/g, '') // Remove ALL numbers
+        .replace(/[^a-zA-Z\s,''-]/g, '') // Keep only letters, spaces, commas, apostrophes, hyphens
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, '') // Remove leading/trailing non-letters
         .trim()
+      
+      if (fallback.length >= 3) {
+        return fallback
+      }
     }
 
     return ''

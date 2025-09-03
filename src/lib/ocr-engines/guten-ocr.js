@@ -1,5 +1,9 @@
 // Guten OCR Engine Implementation
-import { loadModel, recognize } from '@gutenye/ocr-common'
+import Ocr from '@gutenye/ocr-node'
+import { promises as fs } from 'fs'
+import { join } from 'path'
+import { tmpdir } from 'os'
+import { v4 as uuidv4 } from 'uuid'
 
 /**
  * Guten OCR Engine
@@ -8,7 +12,7 @@ import { loadModel, recognize } from '@gutenye/ocr-common'
 export class GutenOCR {
   constructor() {
     this.modelLoaded = false
-    this.model = null
+    this.ocr = null
   }
 
   /**
@@ -17,18 +21,22 @@ export class GutenOCR {
    */
   async _initializeModel() {
     if (this.modelLoaded) {
-      return this.model
+      return this.ocr
     }
 
     try {
       console.log('Initializing Guten OCR model...')
       
       // Load the model (this might take a moment on first run)
-      this.model = await loadModel('en') // English model
+      this.ocr = await Ocr.create({
+        // Use default models for English
+        isDebug: process.env.NODE_ENV === 'development'
+      })
+      
       this.modelLoaded = true
       
       console.log('Guten OCR model loaded successfully')
-      return this.model
+      return this.ocr
     } catch (error) {
       console.error('Failed to load Guten OCR model:', error)
       throw new Error(`Guten OCR initialization failed: ${error.message}`)
@@ -44,63 +52,89 @@ export class GutenOCR {
   async recognize(imageData, options = {}) {
     try {
       // Ensure model is loaded
-      const model = await this._initializeModel()
+      const ocr = await this._initializeModel()
 
-      // Convert different input types to appropriate format
-      let processedImageData = imageData
+      // Convert different input types to appropriate format for Node.js
+      let imageInput = imageData
+      let tempFilePath = null
       
-      // Handle Buffer or ArrayBuffer
-      if (imageData instanceof ArrayBuffer) {
-        processedImageData = new Uint8Array(imageData)
-      } else if (Buffer.isBuffer(imageData)) {
-        processedImageData = new Uint8Array(imageData)
-      } else if (imageData instanceof File) {
-        // Convert File to ArrayBuffer
-        const arrayBuffer = await imageData.arrayBuffer()
-        processedImageData = new Uint8Array(arrayBuffer)
-      }
+      try {
+        // For Node.js server-side processing
+        if (typeof imageData === 'string') {
+          // Assume it's a file path
+          imageInput = imageData
+        } else {
+          // For Buffer/ArrayBuffer/File data, create a temporary file
+          // This is often more reliable for OCR engines
+          let buffer
+          
+          if (Buffer.isBuffer(imageData)) {
+            buffer = imageData
+          } else if (imageData instanceof ArrayBuffer || imageData instanceof Uint8Array) {
+            buffer = Buffer.from(imageData)
+          } else if (imageData instanceof File) {
+            const arrayBuffer = await imageData.arrayBuffer()
+            buffer = Buffer.from(arrayBuffer)
+          } else {
+            throw new Error('Unsupported image data type')
+          }
+          
+          // Create temporary file
+          const tempFileName = `ocr-${uuidv4()}.jpg`
+          tempFilePath = join(tmpdir(), tempFileName)
+          await fs.writeFile(tempFilePath, buffer)
+          imageInput = tempFilePath
+          
+          console.log(`Created temporary file: ${tempFilePath}`)
+        }
 
-      console.log('Running Guten OCR recognition...')
-      
-      // Run OCR recognition
-      const result = await recognize(model, processedImageData, {
-        // Guten OCR options
-        lang: options.lang || 'en',
-        threshold: options.threshold || 0.5,
-        ...options
-      })
+        console.log('Running Guten OCR detection...')
+        
+        // Run OCR detection
+        const result = await ocr.detect(imageInput, options)
 
-      // Extract text and confidence from result
-      let text = ''
-      let totalConfidence = 0
-      let wordCount = 0
+        // Extract text and confidence from result
+        let text = ''
+        let totalScore = 0
+        let lineCount = 0
 
-      if (result && result.length > 0) {
-        // Guten OCR returns array of text regions
-        for (const region of result) {
-          if (region.text) {
-            text += region.text + '\n'
-            if (region.confidence !== undefined) {
-              totalConfidence += region.confidence
-              wordCount++
+        if (result && result.length > 0) {
+          // Guten OCR returns array of text lines
+          for (const line of result) {
+            if (line.text) {
+              text += line.text + '\n'
+              if (line.score !== undefined) {
+                totalScore += line.score
+                lineCount++
+              }
             }
           }
         }
-      }
 
-      // Calculate average confidence
-      const averageConfidence = wordCount > 0 ? totalConfidence / wordCount : 0
+        // Calculate average confidence
+        const averageConfidence = lineCount > 0 ? totalScore / lineCount : 0
 
-      // Clean up the text
-      text = text.trim()
+        // Clean up the text
+        text = text.trim()
 
-      console.log(`Guten OCR extracted ${text.length} characters with ${averageConfidence.toFixed(2)} confidence`)
+        console.log(`Guten OCR extracted ${text.length} characters with ${averageConfidence.toFixed(2)} confidence`)
 
-      return {
-        text,
-        confidence: averageConfidence,
-        regions: result, // Raw result for debugging
-        engine: 'guten'
+        return {
+          text,
+          confidence: averageConfidence,
+          regions: result, // Raw result for debugging
+          engine: 'guten'
+        }
+      } finally {
+        // Clean up temporary file if created
+        if (tempFilePath) {
+          try {
+            await fs.unlink(tempFilePath)
+            console.log(`Cleaned up temporary file: ${tempFilePath}`)
+          } catch (unlinkError) {
+            console.warn(`Failed to clean up temporary file ${tempFilePath}:`, unlinkError.message)
+          }
+        }
       }
     } catch (error) {
       console.error('Guten OCR recognition failed:', error)

@@ -1,7 +1,5 @@
-// Tesseract OCR Engine Implementation (Placeholder)
-// Uncomment and install tesseract.js when ready to use: npm install tesseract.js
-
-// import { createWorker } from 'tesseract.js'
+// Tesseract OCR Engine Implementation
+import { createWorker } from 'tesseract.js'
 
 /**
  * Tesseract OCR Engine
@@ -18,24 +16,32 @@ export class TesseractOCR {
    * @private
    */
   async _initializeWorker() {
-    if (this.initialized) {
+    if (this.initialized && this.worker) {
       return this.worker
     }
 
     try {
-      console.log('Initializing Tesseract worker...')
+      console.log('Initializing Tesseract OCR worker...')
       
-      // Uncomment when tesseract.js is installed:
-      // this.worker = await createWorker('eng')
-      // this.initialized = true
-      
-      // For now, throw an error
-      throw new Error('Tesseract OCR not yet implemented. Install tesseract.js and uncomment the code in tesseract-ocr.js')
-      
-      // console.log('Tesseract worker initialized successfully')
-      // return this.worker
+      this.worker = await createWorker('eng', 1, {
+        logger: m => {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Tesseract:', m)
+          }
+        }
+      })
+
+      // Set page segmentation mode for better text detection
+      await this.worker.setParameters({
+        tessedit_pageseg_mode: '6', // Uniform block of text
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 \'-,./:(){}',
+      })
+
+      this.initialized = true
+      console.log('Tesseract OCR worker initialized successfully')
+      return this.worker
     } catch (error) {
-      console.error('Failed to initialize Tesseract worker:', error)
+      console.error('Failed to initialize Tesseract OCR worker:', error)
       throw new Error(`Tesseract OCR initialization failed: ${error.message}`)
     }
   }
@@ -51,28 +57,42 @@ export class TesseractOCR {
       // Ensure worker is initialized
       const worker = await this._initializeWorker()
 
-      console.log('Running Tesseract OCR recognition...')
+      // Convert different input types to format supported by Tesseract.js
+      let imageInput = imageData
       
-      // Uncomment when tesseract.js is installed:
-      // const { data: { text, confidence } } = await worker.recognize(imageData, {
-      //   logger: m => console.log(m) // Optional: log progress
-      // })
-
-      // For now, return mock data
-      return {
-        text: 'Mock Tesseract Result',
-        confidence: 0.85,
-        engine: 'tesseract'
+      // Tesseract.js can handle Buffer, File, and other formats directly
+      if (imageData instanceof ArrayBuffer) {
+        imageInput = Buffer.from(imageData)
+      } else if (imageData instanceof Uint8Array) {
+        imageInput = Buffer.from(imageData)
       }
 
-      // Uncomment when tesseract.js is installed:
-      // console.log(`Tesseract OCR extracted ${text.length} characters with ${confidence.toFixed(2)} confidence`)
-      // 
-      // return {
-      //   text: text.trim(),
-      //   confidence: confidence / 100, // Tesseract returns 0-100, normalize to 0-1
-      //   engine: 'tesseract'
-      // }
+      console.log('Running Tesseract OCR recognition...')
+      
+      const startTime = Date.now()
+      
+      // Run OCR recognition
+      const { data } = await worker.recognize(imageInput, {
+        rectangle: options.rectangle, // Optional: specify region to OCR
+      })
+
+      const processingTime = Date.now() - startTime
+
+      // Extract text and confidence
+      const text = data.text || ''
+      const confidence = data.confidence || 0
+
+      console.log(`Tesseract OCR extracted ${text.length} characters with ${confidence.toFixed(2)}% confidence in ${processingTime}ms`)
+
+      return {
+        text: text.trim(),
+        confidence: confidence / 100, // Convert from percentage to decimal
+        words: data.words || [],
+        lines: data.lines || [],
+        paragraphs: data.paragraphs || [],
+        engine: 'tesseract',
+        processingTime
+      }
     } catch (error) {
       console.error('Tesseract OCR recognition failed:', error)
       throw new Error(`OCR recognition failed: ${error.message}`)
@@ -84,7 +104,7 @@ export class TesseractOCR {
    * @returns {string}
    */
   getVersion() {
-    return '6.0.x' // Tesseract.js version
+    return 'tesseract.js-5.x'
   }
 
   /**
@@ -92,7 +112,7 @@ export class TesseractOCR {
    * @returns {boolean}
    */
   isReady() {
-    return this.initialized
+    return this.initialized && this.worker !== null
   }
 
   /**
@@ -100,8 +120,12 @@ export class TesseractOCR {
    */
   async cleanup() {
     if (this.worker) {
-      // Uncomment when tesseract.js is installed:
-      // await this.worker.terminate()
+      try {
+        await this.worker.terminate()
+        console.log('Tesseract OCR worker terminated')
+      } catch (error) {
+        console.warn('Error terminating Tesseract worker:', error.message)
+      }
       this.worker = null
       this.initialized = false
     }
