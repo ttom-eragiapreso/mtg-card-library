@@ -79,9 +79,17 @@ export default function CollectionStatisticsPage() {
 
     // Set distribution
     const setDistribution = {}
+    const setInfo = {} // Store both code and full name
     cards.forEach(card => {
-      const set = card.set || 'Unknown'
-      setDistribution[set] = (setDistribution[set] || 0) + 1
+      const setCode = card.set || 'Unknown'
+      const setName = card.setName || setCode
+      
+      setDistribution[setCode] = (setDistribution[setCode] || 0) + 1
+      setInfo[setCode] = {
+        code: setCode,
+        name: setName,
+        count: setDistribution[setCode]
+      }
     })
 
     // Color distribution
@@ -167,10 +175,15 @@ export default function CollectionStatisticsPage() {
       .sort((a, b) => (parseInt(b.cmc) || 0) - (parseInt(a.cmc) || 0))
       .slice(0, 5)
 
-    // Most common sets
+    // Most common sets with full names
     const topSets = Object.entries(setDistribution)
       .sort(([,a], [,b]) => b - a)
       .slice(0, 10)
+      .map(([setCode, count]) => ({
+        code: setCode,
+        name: setInfo[setCode]?.name || setCode,
+        count
+      }))
 
     // Color percentages
     const colorPercentages = {}
@@ -392,17 +405,24 @@ export default function CollectionStatisticsPage() {
               <h3 className="text-xl font-bold text-gray-900">Most Common Sets</h3>
             </div>
             <div className="space-y-3">
-              {statistics.topSets.map(([set, count]) => (
-                <div key={set} className="flex items-center justify-between">
-                  <span className="font-medium text-gray-900 truncate">
-                    {set}
-                  </span>
-                  <div className="flex items-center gap-3">
+              {statistics.topSets.map((setData) => (
+                <div key={setData.code} className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-gray-900 truncate">
+                      {setData.name}
+                    </div>
+                    {setData.name !== setData.code && (
+                      <div className="text-xs text-gray-500">
+                        {setData.code}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
                     <span className="text-sm text-gray-600">
-                      {((count / statistics.totalCards) * 100).toFixed(1)}%
+                      {((setData.count / statistics.totalCards) * 100).toFixed(1)}%
                     </span>
                     <span className="text-lg font-semibold text-gray-900">
-                      {count}
+                      {setData.count}
                     </span>
                   </div>
                 </div>
