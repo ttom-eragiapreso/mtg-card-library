@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { redirect } from 'next/navigation'
 import { getUserDecks, createDeck, deleteDeck } from '@/lib/deck-actions'
-import { PlusIcon, TrashIcon, EyeIcon, PencilIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, TrashIcon, EyeIcon, PencilIcon, RectangleStackIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outline'
 import Navigation from '@/components/Navigation'
 import Link from 'next/link'
 
@@ -218,70 +218,117 @@ export default function DecksPage() {
         {decks.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {decks.map((deck) => (
-              <div key={deck.id} className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden">
-                {/* Deck Header */}
-                <div className="p-4 sm:p-6">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-lg text-gray-900 truncate">
-                        {deck.name}
-                      </h3>
-                      <p className="text-sm text-gray-600 capitalize">
-                        {deck.format}
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-1 ml-2">
-                      <Link href={`/collection/decks/${deck.id}`}>
-                        <button
-                          className="p-2 text-gray-400 hover:text-blue-600 transition-colors duration-200"
-                          title="View deck"
-                        >
-                          <EyeIcon className="w-4 h-4" />
-                        </button>
-                      </Link>
-                      <button
-                        onClick={() => handleDeleteDeck(deck.id, deck.name)}
-                        className="p-2 text-gray-400 hover:text-red-600 transition-colors duration-200"
-                        title="Delete deck"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {deck.description && (
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                      {deck.description}
-                    </p>
-                  )}
-
-                  {/* Deck Stats */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Cards:</span>
-                      <span className="font-medium">{deck.cards?.length || 0}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Created:</span>
-                      <span className="font-medium">
-                        {new Date(deck.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    {deck.lastPlayedAt && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Last played:</span>
-                        <span className="font-medium">
-                          {new Date(deck.lastPlayedAt).toLocaleDateString()}
-                        </span>
+              <div key={deck.id} className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden aspect-[5/7]">
+                {/* Full Cover Image or Placeholder */}
+                <div className="absolute inset-0">
+                  {deck.coverCard ? (
+                    <img
+                      src={deck.coverCard.imageUrl || deck.coverCard.imageSources?.[0]}
+                      alt={deck.coverCard.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Try next image source if available
+                        const nextSrc = deck.coverCard.imageSources?.[1]
+                        if (nextSrc && e.target.src !== nextSrc) {
+                          e.target.src = nextSrc
+                        } else {
+                          // Show placeholder if no image works
+                          e.target.parentElement.innerHTML = `
+                            <div class="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                              <div class="text-center p-4">
+                                <div class="text-4xl mb-2">🎲</div>
+                                <div class="text-gray-600 font-medium">${deck.name}</div>
+                                <div class="text-gray-500 text-sm capitalize">${deck.format}</div>
+                              </div>
+                            </div>
+                          `
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                      <div className="text-center p-4">
+                        <div className="text-4xl mb-2">🎲</div>
+                        <div className="text-gray-600 font-medium">{deck.name}</div>
+                        <div className="text-gray-500 text-sm capitalize">{deck.format}</div>
                       </div>
-                    )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Hover Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
+                  <div className="absolute inset-0 p-6 flex flex-col justify-end text-white">
+                    {/* Delete Button - Top Right */}
+                    <button
+                      onClick={() => handleDeleteDeck(deck.id, deck.name)}
+                      className="absolute top-6 right-6 p-3 bg-red-500/20 hover:bg-red-500/40 backdrop-blur-sm rounded-full transition-all duration-200 hover:scale-110"
+                      title="Delete deck"
+                    >
+                      <TrashIcon className="w-5 h-5 text-red-300" />
+                    </button>
+                    
+                    {/* Bottom Section - Deck Info */}
+                    <div className="mb-16">
+                      <div className="mb-6">
+                        <h3 className="font-bold text-2xl mb-3 truncate tracking-wide">
+                          {deck.name}
+                        </h3>
+                        <div className="inline-flex items-center px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full">
+                          <span className="text-sm font-medium capitalize tracking-wide">
+                            {deck.format}
+                          </span>
+                        </div>
+                      </div>
+
+                      {deck.description && (
+                        <div className="mb-6">
+                          <p className="text-sm text-gray-200 leading-relaxed line-clamp-2 font-light">
+                            {deck.description}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Deck Stats */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <RectangleStackIcon className="w-4 h-4 text-blue-300" />
+                            <span className="text-sm font-medium text-gray-300">Cards</span>
+                          </div>
+                          <span className="font-semibold text-lg">{deck.cards?.length || 0}</span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <CalendarIcon className="w-4 h-4 text-green-300" />
+                            <span className="text-sm font-medium text-gray-300">Created</span>
+                          </div>
+                          <span className="font-medium text-sm">
+                            {new Date(deck.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        
+                        {deck.lastPlayedAt && (
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <ClockIcon className="w-4 h-4 text-purple-300" />
+                              <span className="text-sm font-medium text-gray-300">Last played</span>
+                            </div>
+                            <span className="font-medium text-sm">
+                              {new Date(deck.lastPlayedAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Deck Actions */}
-                <div className="px-4 sm:px-6 pb-4 sm:pb-6">
+                {/* Always Visible View Deck Button */}
+                <div className="absolute bottom-4 left-4 right-4">
                   <Link href={`/collection/decks/${deck.id}`}>
-                    <button className="w-full py-2 px-4 bg-blue-50 text-blue-700 rounded-lg font-medium hover:bg-blue-100 transition-colors duration-200">
+                    <button className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 shadow-lg">
                       View Deck
                     </button>
                   </Link>

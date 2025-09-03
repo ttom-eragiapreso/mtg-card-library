@@ -415,7 +415,33 @@ export async function removeCardFromDeck(deckId, cardData, quantity = null) {
     const userId = new ObjectId(session.user.id)
     const usersCollection = await getUsersCollection()
 
-    console.log('Removing card from deck:', { deckId, cardData, quantity })
+    console.log('Remove card from deck:', { deckId, cardData, quantity })
+
+    // Get the current deck to check if removing cover card
+    const currentUser = await usersCollection.findOne(
+      { _id: userId },
+      { projection: { decks: { $elemMatch: { id: deckId } } } }
+    )
+    
+    if (!currentUser || !currentUser.decks || currentUser.decks.length === 0) {
+      throw new Error('Deck not found')
+    }
+    
+    const currentDeck = currentUser.decks[0]
+    let shouldClearCoverCard = false
+    
+    // Check if we're removing the cover card
+    if (currentDeck.coverCard) {
+      const isCoverCard = 
+        (cardData.isBasicLand && currentDeck.coverCard.cardId === cardData.cardId) ||
+        (cardData.multiverseid && currentDeck.coverCard.multiverseid === cardData.multiverseid) ||
+        (cardData.cardId && currentDeck.coverCard.cardId === cardData.cardId) ||
+        (cardData.id && currentDeck.coverCard.cardId === cardData.id)
+      
+      if (isCoverCard) {
+        shouldClearCoverCard = true
+      }
+    }
 
     // Handle different card data structures
     let pullQuery = {}
@@ -440,6 +466,7 @@ export async function removeCardFromDeck(deckId, cardData, quantity = null) {
 
     console.log('Using pullQuery:', pullQuery)
     console.log('Using arrayFilter:', arrayFilter)
+    console.log('Should clear cover card:', shouldClearCoverCard)
 
     if (quantity === null) {
       // Remove card completely
@@ -477,6 +504,18 @@ export async function removeCardFromDeck(deckId, cardData, quantity = null) {
         }
       )
       console.log('Cleanup result:', cleanupResult)
+    }
+    
+    // Clear cover card if we removed it
+    if (shouldClearCoverCard) {
+      const clearCoverResult = await usersCollection.updateOne(
+        { _id: userId, 'decks.id': deckId },
+        {
+          $unset: { 'decks.$.coverCard': '' },
+          $set: { 'decks.$.updatedAt': new Date() }
+        }
+      )
+      console.log('Clear cover card result:', clearCoverResult)
     }
 
     revalidatePath(`/collection/decks/${deckId}`)
@@ -647,6 +686,80 @@ export async function addBasicLandsToDeck(deckId, basicLands) {
     return { success: true, message: 'Basic lands added to deck successfully' }
   } catch (error) {
     console.error('Error adding basic lands to deck:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+// Set deck cover card
+export async function setDeckCoverCard(deckId, cardData) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.id) {
+      throw new Error('You must be logged in to update decks')
+    }
+
+    const userId = new ObjectId(session.user.id)
+    const usersCollection = await getUsersCollection()
+
+    // Verify the deck exists and the card is in the deck
+    const user = await usersCollection.findOne(
+      { _id: userId },
+      { projection: { decks: { $elemMatch: { id: deckId } } } }
+    )
+    
+    if (!user || !user.decks || user.decks.length === 0) {
+      throw new Error('Deck not found')
+    }
+    
+    const deck = user.decks[0]
+    
+    // Check if the card exists in the deck
+    const cardInDeck = deck.cards.find(deckCard => {
+      if (cardData.isBasicLand && deckCard.cardId === cardData.cardId) {
+        return true
+      }
+      if (cardData.multiverseid && deckCard.multiverseid === cardData.multiverseid) {
+        return true
+      }
+      if (cardData.id && deckCard.cardId === cardData.id) {
+        return true
+      }
+      return false
+    })
+    
+    if (!cardInDeck) {
+      throw new Error('Card not found in deck')
+    }
+
+    // Update the deck with the cover card
+    const result = await usersCollection.updateOne(
+      { _id: userId, 'decks.id': deckId },
+      {
+        $set: {
+          'decks.$.coverCard': {
+            cardId: cardData.id,
+            multiverseid: cardData.multiverseid,
+            isBasicLand: cardData.isBasicLand || false,
+            name: cardData.name,
+            imageUrl: cardData.imageUrl || cardData.imageSources?.[0] || null,
+            imageSources: cardData.imageSources || []
+          },
+          'decks.$.updatedAt': new Date()
+        }
+      }
+    )
+
+    if (result.matchedCount === 0) {
+      throw new Error('Deck not found')
+    }
+
+    revalidatePath(`/collection/decks/${deckId}`)
+    revalidatePath('/collection/decks')
+
+    return { success: true, message: 'Deck cover card updated successfully' }
+  } catch (error) {
+    console.error('Error setting deck cover card:', error)
     return { success: false, error: error.message }
   }
 }
