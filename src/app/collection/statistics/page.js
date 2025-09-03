@@ -101,14 +101,14 @@ export default function CollectionStatisticsPage() {
       if (colors.length === 0) {
         colorDistribution.C += 1
       } else if (colors.length === 1) {
-        if (colorDistribution.hasOwnProperty(colors[0])) {
+        if (Object.prototype.hasOwnProperty.call(colorDistribution, colors[0])) {
           colorDistribution[colors[0]] += 1
         }
       } else {
         // For multicolor cards, we could count them separately
         // For now, let's count them based on their primary color
         colors.forEach(color => {
-          if (colorDistribution.hasOwnProperty(color)) {
+          if (Object.prototype.hasOwnProperty.call(colorDistribution, color)) {
             colorDistribution[color] += 0.5 // Split between colors
           }
         })
