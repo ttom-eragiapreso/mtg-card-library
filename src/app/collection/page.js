@@ -226,13 +226,22 @@ export default function CollectionPage() {
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 sm:mb-0">
               📚 Your Collection
             </h1>
-            <Link
-              href="/collection/decks"
-              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all duration-200"
-            >
-              <span className="text-lg mr-2">🎲</span>
-              View Decks
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link
+                href="/collection/statistics"
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all duration-200"
+              >
+                <span className="text-lg mr-2">📊</span>
+                View Statistics
+              </Link>
+              <Link
+                href="/collection/decks"
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all duration-200"
+              >
+                <span className="text-lg mr-2">🎲</span>
+                View Decks
+              </Link>
+            </div>
           </div>
         </div>
 
