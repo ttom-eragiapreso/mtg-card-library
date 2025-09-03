@@ -3,7 +3,7 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
 import { useMemo } from 'react'
 
-export default function ColorPieChart({ colorDistribution, colorPercentages }) {
+export default function ColorPieChart({ colorDistribution, colorPercentages, onColorClick }) {
   const data = useMemo(() => {
     // MTG color mapping with official mana symbol colors
     const colorMap = {
@@ -87,7 +87,22 @@ export default function ColorPieChart({ colorDistribution, colorPercentages }) {
             dataKey="value"
             stroke="#fff"
             strokeWidth={2}
-            style={{ outline: 'none' }}
+            style={{ outline: 'none', cursor: onColorClick ? 'pointer' : 'default' }}
+            onClick={(data, index) => {
+              if (onColorClick && data && data.payload) {
+                // Map display names back to color keys
+                const colorKeyMap = {
+                  'White': 'W',
+                  'Blue': 'U', 
+                  'Black': 'B',
+                  'Red': 'R',
+                  'Green': 'G',
+                  'Colorless': 'C'
+                }
+                const colorKey = colorKeyMap[data.payload.name] || data.payload.name
+                onColorClick(colorKey, data.payload.name, data.payload.value)
+              }
+            }}
           >
             {data.map((entry, index) => (
               <Cell 

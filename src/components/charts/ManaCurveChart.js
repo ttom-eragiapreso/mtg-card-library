@@ -2,7 +2,7 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
-export default function ManaCurveChart({ manaCurve }) {
+export default function ManaCurveChart({ manaCurve, onCmcClick }) {
   if (!manaCurve || Object.keys(manaCurve).length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-gray-500">
@@ -82,6 +82,13 @@ export default function ManaCurveChart({ manaCurve }) {
             dataKey="count" 
             radius={[2, 2, 0, 0]}
             fill="#3B82F6"
+            style={{ cursor: onCmcClick ? 'pointer' : 'default' }}
+            onClick={(data, index) => {
+              if (onCmcClick && data && data.payload) {
+                const cmcValue = data.payload.cmc === '10+' ? 10 : parseInt(data.payload.cmc)
+                onCmcClick(cmcValue, data.payload.cmc, data.payload.count)
+              }
+            }}
           />
         </BarChart>
       </ResponsiveContainer>

@@ -3,7 +3,7 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
 import { useMemo } from 'react'
 
-export default function TypePieChart({ typeDistribution }) {
+export default function TypePieChart({ typeDistribution, onTypeClick }) {
   const data = useMemo(() => {
     // Card type color mapping
     const typeMap = {
@@ -91,7 +91,24 @@ export default function TypePieChart({ typeDistribution }) {
             dataKey="value"
             stroke="#fff"
             strokeWidth={2}
-            style={{ outline: 'none' }}
+            style={{ outline: 'none', cursor: onTypeClick ? 'pointer' : 'default' }}
+            onClick={(data, index) => {
+              if (onTypeClick && data && data.payload) {
+                // Map display names back to type keys
+                const typeKeyMap = {
+                  'Creatures': 'creature',
+                  'Instants': 'instant',
+                  'Sorceries': 'sorcery',
+                  'Artifacts': 'artifact',
+                  'Enchantments': 'enchantment',
+                  'Planeswalkers': 'planeswalker',
+                  'Lands': 'land',
+                  'Other': 'other'
+                }
+                const typeKey = typeKeyMap[data.payload.name] || data.payload.name.toLowerCase()
+                onTypeClick(typeKey, data.payload.name, data.payload.value)
+              }
+            }}
           >
             {data.map((entry, index) => (
               <Cell 

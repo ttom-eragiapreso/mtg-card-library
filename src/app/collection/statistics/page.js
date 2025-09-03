@@ -16,7 +16,8 @@ import {
   ArrowLeftIcon,
   CalendarDaysIcon,
   CurrencyDollarIcon,
-  TrophyIcon
+  TrophyIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline'
 import ColorPieChart from '@/components/charts/ColorPieChart'
 import TypePieChart from '@/components/charts/TypePieChart'
@@ -28,6 +29,9 @@ export default function CollectionStatisticsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [statistics, setStatistics] = useState(null)
+  const [showCardModal, setShowCardModal] = useState(false)
+  const [modalCards, setModalCards] = useState([])
+  const [modalTitle, setModalTitle] = useState('')
 
   // Redirect to sign-in if not authenticated
   if (status === 'loading') {
@@ -210,6 +214,81 @@ export default function CollectionStatisticsPage() {
     })
   }
 
+  // Filter cards based on criteria
+  const filterCards = (criteria) => {
+    let filtered = [...collection]
+    
+    if (criteria.color) {
+      if (criteria.color === 'C') {
+        // Colorless cards
+        filtered = filtered.filter(card => !card.colors || card.colors.length === 0)
+      } else {
+        // Cards with specific color
+        filtered = filtered.filter(card => card.colors && card.colors.includes(criteria.color))
+      }
+    }
+    
+    if (criteria.type) {
+      filtered = filtered.filter(card => {
+        const types = card.types || []
+        return types.some(type => type.toLowerCase() === criteria.type.toLowerCase())
+      })
+    }
+    
+    if (criteria.rarity) {
+      filtered = filtered.filter(card => card.rarity === criteria.rarity)
+    }
+    
+    if (criteria.set) {
+      filtered = filtered.filter(card => card.set === criteria.set)
+    }
+    
+    if (criteria.cmc !== undefined) {
+      if (criteria.cmc >= 10) {
+        filtered = filtered.filter(card => parseInt(card.cmc || 0) >= 10)
+      } else {
+        filtered = filtered.filter(card => parseInt(card.cmc || 0) === criteria.cmc)
+      }
+    }
+    
+    return filtered
+  }
+
+  // Modal handlers
+  const openCardModal = (cards, title) => {
+    setModalCards(cards)
+    setModalTitle(title)
+    setShowCardModal(true)
+  }
+
+  const closeCardModal = () => {
+    setShowCardModal(false)
+    setModalCards([])
+    setModalTitle('')
+  }
+
+  // Helper function to capitalize first letter
+  const capitalizeFirst = (str) => {
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
+  }
+
+  // Chart click handlers
+  const handleColorClick = (colorKey, displayName, count) => {
+    const cards = filterCards({ color: colorKey })
+    openCardModal(cards, `${displayName} Cards (${count})`)
+  }
+
+  const handleTypeClick = (typeKey, displayName, count) => {
+    const cards = filterCards({ type: typeKey })
+    openCardModal(cards, `${displayName} (${count})`)
+  }
+
+  const handleCmcClick = (cmcValue, displayCmc, count) => {
+    const cards = filterCards({ cmc: cmcValue })
+    const title = cmcValue >= 10 ? `CMC 10+ Cards (${count})` : `CMC ${cmcValue} Cards (${count})`
+    openCardModal(cards, title)
+  }
+
   const getRarityColor = (rarity) => {
     switch (rarity?.toLowerCase()) {
       case 'common': return 'text-gray-600 bg-gray-100'
@@ -342,6 +421,7 @@ export default function CollectionStatisticsPage() {
               <ColorPieChart 
                 colorDistribution={statistics.colorDistribution} 
                 colorPercentages={statistics.colorPercentages}
+                onColorClick={handleColorClick}
               />
             </div>
           </div>
@@ -353,7 +433,10 @@ export default function CollectionStatisticsPage() {
               <h3 className="text-xl font-bold text-gray-900">Card Types</h3>
             </div>
             <div className="h-64">
-              <TypePieChart typeDistribution={statistics.typeDistribution} />
+              <TypePieChart 
+                typeDistribution={statistics.typeDistribution}
+                onTypeClick={handleTypeClick}
+              />
             </div>
           </div>
         </div>
@@ -365,7 +448,10 @@ export default function CollectionStatisticsPage() {
             <h3 className="text-xl font-bold text-gray-900">Mana Curve</h3>
           </div>
           <div className="h-64">
-            <ManaCurveChart manaCurve={statistics.manaCurve} />
+            <ManaCurveChart 
+              manaCurve={statistics.manaCurve} 
+              onCmcClick={handleCmcClick}
+            />
           </div>
         </div>
 
@@ -381,7 +467,15 @@ export default function CollectionStatisticsPage() {
               {Object.entries(statistics.rarityDistribution)
                 .sort(([,a], [,b]) => b - a)
                 .map(([rarity, count]) => (
-                <div key={rarity} className="flex items-center justify-between">
+                <div 
+                  key={rarity} 
+                  className="flex items-center justify-between cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                  onClick={() => {
+                    const cards = filterCards({ rarity })
+                    const capitalizedRarity = capitalizeFirst(rarity)
+                    openCardModal(cards, `${capitalizedRarity} Cards (${count})`)
+                  }}
+                >
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${getRarityColor(rarity)}`}>
                     {rarity}
                   </span>
@@ -406,7 +500,14 @@ export default function CollectionStatisticsPage() {
             </div>
             <div className="space-y-3">
               {statistics.topSets.map((setData) => (
-                <div key={setData.code} className="flex items-center justify-between">
+                <div 
+                  key={setData.code} 
+                  className="flex items-center justify-between cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                  onClick={() => {
+                    const cards = filterCards({ set: setData.code })
+                    openCardModal(cards, `${setData.name} (${setData.count} cards)`)
+                  }}
+                >
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-gray-900 truncate">
                       {setData.name}
@@ -455,6 +556,81 @@ export default function CollectionStatisticsPage() {
           </div>
         </div>
       </div>
+
+      {/* Card Modal */}
+      {showCardModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={closeCardModal}></div>
+
+            <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:p-6 w-full sm:max-w-lg md:max-w-2xl lg:max-w-4xl xl:max-w-6xl">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  {modalTitle}
+                </h3>
+                <button
+                  onClick={closeCardModal}
+                  className="bg-white rounded-md text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="max-h-96 overflow-y-auto">
+                <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                  {modalCards.map((card, index) => (
+                    <div key={`${card.name}-${index}`} className="relative group">
+                      <div className="aspect-[2.5/3.5] rounded-lg overflow-hidden bg-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                        {card.imageUrl ? (
+                          <img
+                            src={card.imageUrl}
+                            alt={card.name}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                            <div className="text-center p-2">
+                              <div className="text-xs font-semibold text-gray-700 mb-1 line-clamp-2">
+                                {card.name}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {card.set || 'Unknown Set'}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Hover tooltip */}
+                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white text-xs p-2 opacity-0 group-hover:opacity-100 transition-opacity rounded-b-lg">
+                        <div className="font-semibold truncate">{card.name}</div>
+                        <div className="text-gray-300 truncate">{card.set}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                {modalCards.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    No cards found for this filter.
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-5 sm:mt-6 flex justify-end">
+                <button
+                  type="button"
+                  className="inline-flex justify-center w-full sm:w-auto rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:text-sm"
+                  onClick={closeCardModal}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
