@@ -218,10 +218,10 @@ export default function DecksPage() {
         {decks.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {decks.map((deck) => (
-              <div key={deck.id} className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden">
-                {/* Deck Cover Image */}
-                {deck.coverCard && (
-                  <div className="h-32 sm:h-40 bg-gray-100 overflow-hidden">
+              <div key={deck.id} className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden aspect-[5/7]">
+                {/* Full Cover Image or Placeholder */}
+                <div className="absolute inset-0">
+                  {deck.coverCard ? (
                     <img
                       src={deck.coverCard.imageUrl || deck.coverCard.imageSources?.[0]}
                       alt={deck.coverCard.name}
@@ -232,77 +232,88 @@ export default function DecksPage() {
                         if (nextSrc && e.target.src !== nextSrc) {
                           e.target.src = nextSrc
                         } else {
-                          // Hide the image container if no image works
-                          e.target.parentElement.style.display = 'none'
+                          // Show placeholder if no image works
+                          e.target.parentElement.innerHTML = `
+                            <div class="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                              <div class="text-center p-4">
+                                <div class="text-4xl mb-2">🎲</div>
+                                <div class="text-gray-600 font-medium">${deck.name}</div>
+                                <div class="text-gray-500 text-sm capitalize">${deck.format}</div>
+                              </div>
+                            </div>
+                          `
                         }
                       }}
                     />
-                  </div>
-                )}
-                
-                {/* Deck Header */}
-                <div className="p-4 sm:p-6">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-lg text-gray-900 truncate">
-                        {deck.name}
-                      </h3>
-                      <p className="text-sm text-gray-600 capitalize">
-                        {deck.format}
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-1 ml-2">
-                      <Link href={`/collection/decks/${deck.id}`}>
-                        <button
-                          className="p-2 text-gray-400 hover:text-blue-600 transition-colors duration-200"
-                          title="View deck"
-                        >
-                          <EyeIcon className="w-4 h-4" />
-                        </button>
-                      </Link>
-                      <button
-                        onClick={() => handleDeleteDeck(deck.id, deck.name)}
-                        className="p-2 text-gray-400 hover:text-red-600 transition-colors duration-200"
-                        title="Delete deck"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {deck.description && (
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                      {deck.description}
-                    </p>
-                  )}
-
-                  {/* Deck Stats */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Cards:</span>
-                      <span className="font-medium">{deck.cards?.length || 0}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Created:</span>
-                      <span className="font-medium">
-                        {new Date(deck.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    {deck.lastPlayedAt && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Last played:</span>
-                        <span className="font-medium">
-                          {new Date(deck.lastPlayedAt).toLocaleDateString()}
-                        </span>
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                      <div className="text-center p-4">
+                        <div className="text-4xl mb-2">🎲</div>
+                        <div className="text-gray-600 font-medium">{deck.name}</div>
+                        <div className="text-gray-500 text-sm capitalize">{deck.format}</div>
                       </div>
-                    )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Hover Overlay */}
+                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-75 transition-all duration-300">
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-4 flex flex-col justify-between text-white">
+                    {/* Top Section - Deck Info */}
+                    <div>
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-lg truncate">
+                            {deck.name}
+                          </h3>
+                          <p className="text-sm text-gray-200 capitalize">
+                            {deck.format}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteDeck(deck.id, deck.name)}
+                          className="p-2 text-gray-300 hover:text-red-400 transition-colors duration-200"
+                          title="Delete deck"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {deck.description && (
+                        <p className="text-sm text-gray-200 mb-4 line-clamp-2">
+                          {deck.description}
+                        </p>
+                      )}
+
+                      {/* Deck Stats */}
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-300">Cards:</span>
+                          <span className="font-medium">{deck.cards?.length || 0}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-300">Created:</span>
+                          <span className="font-medium">
+                            {new Date(deck.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {deck.lastPlayedAt && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-300">Last played:</span>
+                            <span className="font-medium">
+                              {new Date(deck.lastPlayedAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Deck Actions */}
-                <div className="px-4 sm:px-6 pb-4 sm:pb-6">
+                {/* Always Visible View Deck Button */}
+                <div className="absolute bottom-4 left-4 right-4">
                   <Link href={`/collection/decks/${deck.id}`}>
-                    <button className="w-full py-2 px-4 bg-blue-50 text-blue-700 rounded-lg font-medium hover:bg-blue-100 transition-colors duration-200">
+                    <button className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 shadow-lg">
                       View Deck
                     </button>
                   </Link>
