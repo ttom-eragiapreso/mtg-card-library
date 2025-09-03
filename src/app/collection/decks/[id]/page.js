@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { redirect, useParams } from 'next/navigation'
-import { getDeckById, getDeckAnalytics, updateDeck, removeCardFromDeck, addBasicLandsToDeck } from '@/lib/deck-actions'
+import { getDeckById, getDeckAnalytics, updateDeck, removeCardFromDeck, addBasicLandsToDeck, setDeckCoverCard } from '@/lib/deck-actions'
 import { getUserCollection } from '@/lib/collection-actions'
 import { 
   ChartBarIcon, 
@@ -12,7 +12,8 @@ import {
   PlusIcon,
   ArrowLeftIcon,
   ChartPieIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  PhotoIcon
 } from '@heroicons/react/24/outline'
 import Navigation from '@/components/Navigation'
 import Link from 'next/link'
@@ -40,6 +41,7 @@ export default function DeckViewPage() {
   const [isAddingLands, setIsAddingLands] = useState(false)
   const [shouldResetLandsForm, setShouldResetLandsForm] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [settingCoverCard, setSettingCoverCard] = useState(null)
 
   // Edit deck form data
   const [editData, setEditData] = useState({
@@ -195,6 +197,36 @@ export default function DeckViewPage() {
       setTimeout(() => setNotification(null), 3000)
     } finally {
       setIsAddingLands(false)
+    }
+  }
+
+  const handleSetCoverCard = async (deckCard, index) => {
+    const cardId = `${deckCard.collectionCardId}-${index}`
+    setSettingCoverCard(cardId)
+    
+    try {
+      const cardData = deckCard.cardData
+      const result = await setDeckCoverCard(deckId, cardData)
+      
+      if (result.success) {
+        // Reload deck data to get updated cover card
+        const deckResult = await getDeckById(deckId)
+        if (deckResult.success) {
+          setDeck(deckResult.deck)
+        }
+        
+        setNotification({ type: 'success', message: 'Deck cover image updated' })
+        setTimeout(() => setNotification(null), 3000)
+      } else {
+        setNotification({ type: 'error', message: result.error || 'Failed to set cover card' })
+        setTimeout(() => setNotification(null), 3000)
+      }
+    } catch (error) {
+      console.error('Error setting cover card:', error)
+      setNotification({ type: 'error', message: 'An error occurred while setting the cover card' })
+      setTimeout(() => setNotification(null), 3000)
+    } finally {
+      setSettingCoverCard(null)
     }
   }
 
@@ -601,6 +633,18 @@ export default function DeckViewPage() {
 
                     {/* Actions */}
                     <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handleSetCoverCard(deckCard, index)}
+                        disabled={settingCoverCard !== null}
+                        className="p-2 text-gray-400 hover:text-blue-600 transition-colors disabled:opacity-50"
+                        title="Set as deck cover image"
+                      >
+                        {settingCoverCard === `${deckCard.collectionCardId}-${index}` ? (
+                          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <PhotoIcon className="w-4 h-4" />
+                        )}
+                      </button>
                       <button
                         onClick={() => handleRemoveCard(deckCard)}
                         className="p-2 text-gray-400 hover:text-red-600 transition-colors"

@@ -219,6 +219,27 @@ export default function DecksPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {decks.map((deck) => (
               <div key={deck.id} className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden">
+                {/* Deck Cover Image */}
+                {deck.coverCard && (
+                  <div className="h-32 sm:h-40 bg-gray-100 overflow-hidden">
+                    <img
+                      src={deck.coverCard.imageUrl || deck.coverCard.imageSources?.[0]}
+                      alt={deck.coverCard.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Try next image source if available
+                        const nextSrc = deck.coverCard.imageSources?.[1]
+                        if (nextSrc && e.target.src !== nextSrc) {
+                          e.target.src = nextSrc
+                        } else {
+                          // Hide the image container if no image works
+                          e.target.parentElement.style.display = 'none'
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+                
                 {/* Deck Header */}
                 <div className="p-4 sm:p-6">
                   <div className="flex items-start justify-between mb-3">
