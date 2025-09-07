@@ -46,6 +46,29 @@ select option {
 
 /* Let DaisyUI theme handle heading colors */
 
+/* Prevent mobile zoom on input focus */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+textarea,
+select {
+  font-size: 16px !important;
+}
+
+@media (min-width: 768px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  textarea,
+  select {
+    font-size: inherit !important;
+  }
+}
+
 /* MTG Mana symbols styling */
 .mana-symbol {
   display: inline-block;
