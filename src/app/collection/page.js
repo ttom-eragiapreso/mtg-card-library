@@ -32,6 +32,9 @@ export default function CollectionPage() {
   // Color Filters
   const [selectedColors, setSelectedColors] = useState([]) // Array of selected color letters: W, U, B, R, G
   
+  // Set Filter
+  const [selectedSet, setSelectedSet] = useState('') // Selected set code
+  
   // Stats
   const [stats, setStats] = useState({
     totalCards: 0,
@@ -137,6 +140,13 @@ export default function CollectionPage() {
         return selectedColors.every(color => cardColorIdentity.includes(color))
       })
     }
+    
+    // Apply set filter
+    if (selectedSet !== '') {
+      filtered = filtered.filter(item => {
+        return item.set === selectedSet
+      })
+    }
 
     // Apply sorting
     filtered.sort((a, b) => {
@@ -161,7 +171,7 @@ export default function CollectionPage() {
     })
 
     setFilteredCollection(filtered)
-  }, [collection, searchQuery, filterBy, sortBy, cmcValue, cmcMode, selectedColors])
+  }, [collection, searchQuery, filterBy, sortBy, cmcValue, cmcMode, selectedColors, selectedSet])
 
   const handleRemoveCard = async (collectionItem) => {
     try {
@@ -291,6 +301,7 @@ export default function CollectionPage() {
                 if (filterBy !== 'all') activeFilters++
                 if (cmcValue !== '') activeFilters++
                 if (selectedColors.length > 0) activeFilters++
+                if (selectedSet !== '') activeFilters++
                 
                 return activeFilters > 0 ? (
                   <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
@@ -314,10 +325,10 @@ export default function CollectionPage() {
           <div className="text-center py-16">
             <div className="text-6xl mb-4">📦</div>
             <h3 className="text-2xl font-bold text-gray-900 mb-4">
-              {searchQuery || filterBy !== 'all' || cmcValue !== '' || selectedColors.length > 0 ? 'No cards match your filters' : 'No cards in collection'}
+              {searchQuery || filterBy !== 'all' || cmcValue !== '' || selectedColors.length > 0 || selectedSet !== '' ? 'No cards match your filters' : 'No cards in collection'}
             </h3>
             <p className="text-gray-600 mb-8">
-              {searchQuery || filterBy !== 'all' || cmcValue !== '' || selectedColors.length > 0
+              {searchQuery || filterBy !== 'all' || cmcValue !== '' || selectedColors.length > 0 || selectedSet !== ''
                 ? 'Try adjusting your search or filter criteria'
                 : 'Start building your collection by searching for cards'}
             </p>
@@ -497,6 +508,38 @@ export default function CollectionPage() {
                   </div>
                 </div>
 
+                {/* Set Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Set
+                  </label>
+                  <Select
+                    className="w-full"
+                    value={selectedSet}
+                    onChange={(e) => setSelectedSet(e.target.value)}
+                  >
+                    <option value="">All Sets</option>
+                    {/* Generate unique sets from collection */}
+                    {collection
+                      .reduce((uniqueSets, card) => {
+                        if (card.set && !uniqueSets.some(s => s.code === card.set)) {
+                          uniqueSets.push({
+                            code: card.set,
+                            name: card.setName || card.set
+                          })
+                        }
+                        return uniqueSets
+                      }, [])
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map(set => (
+                        <option key={set.code} value={set.code}>
+                          {set.name}
+                        </option>
+                      ))
+                    }
+                  </Select>
+                </div>
+
                 {/* Sort By */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -524,6 +567,7 @@ export default function CollectionPage() {
                     setCmcValue('')
                     setCmcMode('exact')
                     setSelectedColors([])
+                    setSelectedSet('')
                     setSearchQuery('')
                   }}
                   className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
