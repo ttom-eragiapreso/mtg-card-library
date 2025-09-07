@@ -55,6 +55,9 @@ export default function DeckViewPage() {
   const [cmcMode, setCmcMode] = useState('exact') // exact, gte, lte
   const [selectedColors, setSelectedColors] = useState([]) // Array of selected color letters: W, U, B, R, G
   
+  // Set Filter
+  const [selectedSet, setSelectedSet] = useState('') // Selected set code
+  
   // Card modal for chart interactions
   const [showCardModal, setShowCardModal] = useState(false)
   const [modalCards, setModalCards] = useState([])
@@ -446,6 +449,11 @@ export default function DeckViewPage() {
       if (!hasAllColors) return false
     }
     
+    // Apply set filter
+    if (selectedSet !== '') {
+      if (cardData.set !== selectedSet) return false
+    }
+    
     return true
   }).sort((a, b) => {
     const cardA = a.cardData
@@ -692,6 +700,7 @@ export default function DeckViewPage() {
                     if (filterBy !== 'all') activeFilters++
                     if (cmcValue !== '') activeFilters++
                     if (selectedColors.length > 0) activeFilters++
+                    if (selectedSet !== '') activeFilters++
                     
                     return activeFilters > 0 ? (
                       <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
@@ -1067,6 +1076,40 @@ export default function DeckViewPage() {
                   </div>
                 </div>
 
+                {/* Set Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Set
+                  </label>
+                  <Select
+                    className="w-full"
+                    value={selectedSet}
+                    onChange={(e) => setSelectedSet(e.target.value)}
+                  >
+                    <option value="">All Sets</option>
+                    {/* Generate unique sets from deck cards */}
+                    {deck?.cards
+                      ?.filter(deckCard => deckCard.cardData)
+                      .reduce((uniqueSets, deckCard) => {
+                        const card = deckCard.cardData
+                        if (card.set && !uniqueSets.some(s => s.code === card.set)) {
+                          uniqueSets.push({
+                            code: card.set,
+                            name: card.setName || card.set
+                          })
+                        }
+                        return uniqueSets
+                      }, [])
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map(set => (
+                        <option key={set.code} value={set.code}>
+                          {set.name}
+                        </option>
+                      ))
+                    }
+                  </Select>
+                </div>
+
                 {/* Sort By */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1094,6 +1137,7 @@ export default function DeckViewPage() {
                     setCmcValue('')
                     setCmcMode('exact')
                     setSelectedColors([])
+                    setSelectedSet('')
                     setSearchQuery('')
                   }}
                   className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
