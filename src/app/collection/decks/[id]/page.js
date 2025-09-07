@@ -13,7 +13,9 @@ import {
   ArrowLeftIcon,
   ChartPieIcon,
   MagnifyingGlassIcon,
-  PhotoIcon
+  PhotoIcon,
+  FunnelIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline'
 import Navigation from '@/components/Navigation'
 import Link from 'next/link'
@@ -22,6 +24,8 @@ import ColorPieChart from '@/components/charts/ColorPieChart'
 import TypePieChart from '@/components/charts/TypePieChart'
 import BasicLandsAdder from '@/components/BasicLandsAdder'
 import { useModal } from '@/components/ModalProvider'
+import Input from '@/components/ui/Input'
+import Select from '@/components/ui/Select'
 
 export default function DeckViewPage() {
   const { data: session, status } = useSession()
@@ -42,6 +46,19 @@ export default function DeckViewPage() {
   const [shouldResetLandsForm, setShouldResetLandsForm] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [settingCoverCard, setSettingCoverCard] = useState(null)
+  
+  // Advanced Filters
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
+  const [filterBy, setFilterBy] = useState('all') // all, creatures, spells, artifacts, etc.
+  const [sortBy, setSortBy] = useState('name') // name, type, cmc, etc.
+  const [cmcValue, setCmcValue] = useState('')
+  const [cmcMode, setCmcMode] = useState('exact') // exact, gte, lte
+  const [selectedColors, setSelectedColors] = useState([]) // Array of selected color letters: W, U, B, R, G
+  
+  // Card modal for chart interactions
+  const [showCardModal, setShowCardModal] = useState(false)
+  const [modalCards, setModalCards] = useState([])
+  const [modalTitle, setModalTitle] = useState('')
 
   // Edit deck form data
   const [editData, setEditData] = useState({
@@ -310,12 +327,149 @@ export default function DeckViewPage() {
     G: 'Green',
     C: 'Colorless'
   }
+  
+  // Filter deck cards based on criteria (for chart modals)
+  const filterDeckCards = (criteria) => {
+    if (!deck?.cards) return []
+    
+    let filtered = deck.cards.filter(deckCard => deckCard.cardData)
+    
+    if (criteria.color) {
+      if (criteria.color === 'C') {
+        // Colorless cards
+        filtered = filtered.filter(deckCard => {
+          const colors = deckCard.cardData.colors || []
+          return colors.length === 0
+        })
+      } else {
+        // Cards with specific color
+        filtered = filtered.filter(deckCard => {
+          const colors = deckCard.cardData.colors || []
+          return colors.includes(criteria.color)
+        })
+      }
+    }
+    
+    if (criteria.type) {
+      filtered = filtered.filter(deckCard => {
+        const types = deckCard.cardData.types || []
+        return types.some(type => type.toLowerCase() === criteria.type.toLowerCase())
+      })
+    }
+    
+    if (criteria.cmc !== undefined) {
+      if (criteria.cmc >= 10) {
+        filtered = filtered.filter(deckCard => parseInt(deckCard.cardData.cmc || 0) >= 10)
+      } else {
+        filtered = filtered.filter(deckCard => parseInt(deckCard.cardData.cmc || 0) === criteria.cmc)
+      }
+    }
+    
+    return filtered
+  }
+  
+  // Modal handlers
+  const openCardModal = (cards, title) => {
+    setModalCards(cards)
+    setModalTitle(title)
+    setShowCardModal(true)
+  }
+  
+  const closeCardModal = () => {
+    setShowCardModal(false)
+    setModalCards([])
+    setModalTitle('')
+  }
+  
+  // Chart click handlers
+  const handleColorClick = (colorKey, displayName, count) => {
+    const cards = filterDeckCards({ color: colorKey })
+    openCardModal(cards, `${displayName} Cards (${count})`)
+  }
+  
+  const handleTypeClick = (typeKey, displayName, count) => {
+    const cards = filterDeckCards({ type: typeKey })
+    openCardModal(cards, `${displayName} (${count})`)
+  }
+  
+  const handleCmcClick = (cmcValue, displayCmc, count) => {
+    const cards = filterDeckCards({ cmc: cmcValue })
+    const title = cmcValue >= 10 ? `CMC 10+ Cards (${count})` : `CMC ${cmcValue} Cards (${count})`
+    openCardModal(cards, title)
+  }
 
-  // Filter cards based on search query
+  // Filter and sort deck cards based on all criteria
   const filteredCards = deck?.cards?.filter(deckCard => {
-    if (!searchQuery.trim()) return true
-    const cardName = deckCard.cardData?.name || ''
-    return cardName.toLowerCase().includes(searchQuery.toLowerCase())
+    const cardData = deckCard.cardData
+    if (!cardData) return false
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const searchLower = searchQuery.toLowerCase()
+      const matchesName = cardData.name?.toLowerCase().includes(searchLower)
+      const matchesType = cardData.type?.toLowerCase().includes(searchLower)
+      const matchesText = cardData.text?.toLowerCase().includes(searchLower)
+      if (!matchesName && !matchesType && !matchesText) return false
+    }
+    
+    // Apply type filter
+    if (filterBy !== 'all') {
+      const types = cardData.types || []
+      const hasType = types.some(type => type.toLowerCase() === filterBy.toLowerCase())
+      if (!hasType) return false
+    }
+    
+    // Apply CMC filter
+    if (cmcValue !== '') {
+      const targetCmc = parseInt(cmcValue)
+      if (!isNaN(targetCmc)) {
+        const itemCmc = parseInt(cardData.cmc) || 0
+        switch (cmcMode) {
+          case 'exact':
+            if (itemCmc !== targetCmc) return false
+            break
+          case 'gte':
+            if (itemCmc < targetCmc) return false
+            break
+          case 'lte':
+            if (itemCmc > targetCmc) return false
+            break
+        }
+      }
+    }
+    
+    // Apply color filter
+    if (selectedColors.length > 0) {
+      const cardColorIdentity = cardData.colorIdentity || cardData.colors || []
+      // Check if card has ALL of the selected colors (AND logic)
+      const hasAllColors = selectedColors.every(color => cardColorIdentity.includes(color))
+      if (!hasAllColors) return false
+    }
+    
+    return true
+  }).sort((a, b) => {
+    const cardA = a.cardData
+    const cardB = b.cardData
+    
+    switch (sortBy) {
+      case 'name':
+        return (cardA?.name || '').localeCompare(cardB?.name || '')
+      case 'type':
+        return (cardA?.type || '').localeCompare(cardB?.type || '')
+      case 'cmc': {
+        const aCmc = parseInt(cardA?.cmc) || 0
+        const bCmc = parseInt(cardB?.cmc) || 0
+        return aCmc - bCmc
+      }
+      case 'rarity': {
+        const rarityOrder = { 'common': 1, 'uncommon': 2, 'rare': 3, 'mythic rare': 4 }
+        return (rarityOrder[cardA?.rarity?.toLowerCase()] || 0) - (rarityOrder[cardB?.rarity?.toLowerCase()] || 0)
+      }
+      case 'quantity':
+        return b.quantity - a.quantity
+      default:
+        return (cardA?.name || '').localeCompare(cardB?.name || '')
+    }
   }) || []
 
   if (isLoading) {
@@ -452,7 +606,10 @@ export default function DeckViewPage() {
                 Mana Curve
               </h3>
               <div className="h-48">
-                <ManaCurveChart manaCurve={analytics.manaCurve} />
+                <ManaCurveChart 
+                  manaCurve={analytics.manaCurve}
+                  onCmcClick={handleCmcClick} 
+                />
               </div>
             </div>
 
@@ -466,6 +623,7 @@ export default function DeckViewPage() {
                 <ColorPieChart 
                   colorDistribution={analytics.colorDistribution} 
                   colorPercentages={analytics.colorPercentages}
+                  onColorClick={handleColorClick}
                 />
               </div>
             </div>
@@ -476,7 +634,10 @@ export default function DeckViewPage() {
                 Card Types
               </h3>
               <div className="h-48">
-                <TypePieChart typeDistribution={analytics.typeDistribution} />
+                <TypePieChart 
+                  typeDistribution={analytics.typeDistribution}
+                  onTypeClick={handleTypeClick}
+                />
               </div>
             </div>
           </div>
@@ -505,29 +666,40 @@ export default function DeckViewPage() {
                 )}
               </h3>
               
-              {/* Search Input */}
-              <div className="relative flex-shrink-0 w-full sm:w-64">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+              <div className="flex gap-3">
+                {/* Search Input */}
+                <div className="relative flex-1">
+                  <Input
+                    type="text"
+                    placeholder="Search deck cards..."
+                    className="w-full"
+                    leftIcon={MagnifyingGlassIcon}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
                 </div>
-                <input
-                  type="text"
-                  placeholder="Search cards..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                    title="Clear search"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
+                
+                {/* Advanced Filters Button */}
+                <button
+                  onClick={() => setShowAdvancedFilters(true)}
+                  className="relative flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200 border border-gray-300 flex-shrink-0"
+                >
+                  <FunnelIcon className="w-5 h-5" />
+                  <span className="ml-2 hidden sm:inline">Filters</span>
+                  {(() => {
+                    // Calculate active filters count
+                    let activeFilters = 0
+                    if (filterBy !== 'all') activeFilters++
+                    if (cmcValue !== '') activeFilters++
+                    if (selectedColors.length > 0) activeFilters++
+                    
+                    return activeFilters > 0 ? (
+                      <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                        {activeFilters}
+                      </span>
+                    ) : null
+                  })()} 
+                </button>
               </div>
             </div>
           </div>
@@ -752,6 +924,279 @@ export default function DeckViewPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      
+      {/* Advanced Filters Modal */}
+      {showAdvancedFilters && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Advanced Filters</h2>
+                <button
+                  onClick={() => setShowAdvancedFilters(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Filter by Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Card Type
+                  </label>
+                  <Select
+                    className="w-full"
+                    value={filterBy}
+                    onChange={(e) => setFilterBy(e.target.value)}
+                  >
+                    <option value="all">All Types</option>
+                    <option value="creature">Creatures</option>
+                    <option value="instant">Instants</option>
+                    <option value="sorcery">Sorceries</option>
+                    <option value="artifact">Artifacts</option>
+                    <option value="enchantment">Enchantments</option>
+                    <option value="planeswalker">Planeswalkers</option>
+                    <option value="land">Lands</option>
+                  </Select>
+                </div>
+
+                {/* Color Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Colors (Color Identity)
+                  </label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {[
+                      { letter: 'W', name: 'White', bg: 'bg-yellow-50', border: 'border-yellow-300', text: 'text-yellow-800', symbol: '☀️' },
+                      { letter: 'U', name: 'Blue', bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-800', symbol: '💧' },
+                      { letter: 'B', name: 'Black', bg: 'bg-gray-50', border: 'border-gray-400', text: 'text-gray-800', symbol: '💀' },
+                      { letter: 'R', name: 'Red', bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-800', symbol: '🔥' },
+                      { letter: 'G', name: 'Green', bg: 'bg-green-50', border: 'border-green-300', text: 'text-green-800', symbol: '🌿' }
+                    ].map(color => {
+                      const isSelected = selectedColors.includes(color.letter)
+                      return (
+                        <button
+                          key={color.letter}
+                          type="button"
+                          onClick={() => {
+                            setSelectedColors(prev => 
+                              isSelected 
+                                ? prev.filter(c => c !== color.letter)
+                                : [...prev, color.letter]
+                            )
+                          }}
+                          className={`flex flex-col items-center p-2 rounded-lg border-2 transition-all duration-200 ${
+                            isSelected
+                              ? `${color.bg} ${color.border} ${color.text} shadow-sm`
+                              : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                          }`}
+                          title={`${color.name} (${color.letter})`}
+                        >
+                          <span className="text-lg mb-1">{color.symbol}</span>
+                          <span className="text-xs font-medium">{color.letter}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {selectedColors.length > 0 && (
+                    <div className="mt-2 text-xs text-gray-600">
+                      Selected: {selectedColors.join(', ')}
+                    </div>
+                  )}
+                </div>
+
+                {/* CMC Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Converted Mana Cost (CMC)
+                  </label>
+                  <div className="space-y-3">
+                    {/* CMC Value Input */}
+                    <Input
+                      type="number"
+                      placeholder="Enter CMC value"
+                      className="w-full [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
+                      value={cmcValue}
+                      onChange={(e) => setCmcValue(e.target.value)}
+                      min="0"
+                      max="20"
+                    />
+                    
+                    {/* CMC Mode Toggle */}
+                    {cmcValue !== '' && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setCmcMode('exact')}
+                          className={`flex-1 px-3 py-2 text-xs font-medium rounded-md transition-colors ${
+                            cmcMode === 'exact'
+                              ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                              : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+                          }`}
+                        >
+                          Exact ({cmcValue})
+                        </button>
+                        <button
+                          onClick={() => setCmcMode('gte')}
+                          className={`flex-1 px-3 py-2 text-xs font-medium rounded-md transition-colors ${
+                            cmcMode === 'gte'
+                              ? 'bg-green-100 text-green-700 border border-green-300'
+                              : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+                          }`}
+                        >
+                          ≥ {cmcValue}
+                        </button>
+                        <button
+                          onClick={() => setCmcMode('lte')}
+                          className={`flex-1 px-3 py-2 text-xs font-medium rounded-md transition-colors ${
+                            cmcMode === 'lte'
+                              ? 'bg-purple-100 text-purple-700 border border-purple-300'
+                              : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+                          }`}
+                        >
+                          ≤ {cmcValue}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Sort By */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Sort By
+                  </label>
+                  <Select
+                    className="w-full"
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                  >
+                    <option value="name">Name</option>
+                    <option value="type">Type</option>
+                    <option value="cmc">Mana Cost</option>
+                    <option value="rarity">Rarity</option>
+                    <option value="quantity">Quantity</option>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-8 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setFilterBy('all')
+                    setSortBy('name')
+                    setCmcValue('')
+                    setCmcMode('exact')
+                    setSelectedColors([])
+                    setSearchQuery('')
+                  }}
+                  className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
+                >
+                  Clear All Filters
+                </button>
+                <button
+                  onClick={() => setShowAdvancedFilters(false)}
+                  className="flex-1 px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Card Modal */}
+      {showCardModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={closeCardModal}></div>
+
+            <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:p-6 w-full sm:max-w-lg md:max-w-2xl lg:max-w-4xl xl:max-w-6xl">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  {modalTitle}
+                </h3>
+                <button
+                  onClick={closeCardModal}
+                  className="bg-white rounded-md text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="max-h-[70vh] overflow-y-auto">
+                <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                  {modalCards.map((deckCard, index) => {
+                    const cardData = deckCard.cardData
+                    const imageUrl = getCardImageUrl(deckCard)
+                    
+                    return (
+                      <div key={`${deckCard.collectionCardId}-${index}`} className="relative group">
+                        <div className="aspect-[2.5/3.5] rounded-lg overflow-hidden bg-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                          {imageUrl ? (
+                            <img
+                              src={imageUrl}
+                              alt={cardData?.name}
+                              className="w-full h-full object-cover cursor-pointer"
+                              loading="lazy"
+                              onClick={(e) => handleCardImageClick(deckCard, e)}
+                              onError={(e) => {
+                                // Hide image if it fails to load
+                                e.target.style.display = 'none'
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                              <div className="text-center p-2">
+                                <div className="text-xs font-semibold text-gray-700 mb-1 line-clamp-2">
+                                  {cardData?.name || 'Unknown Card'}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {cardData?.set || 'Unknown Set'}
+                                </div>
+                                <div className="text-xs text-blue-600 font-medium mt-1">
+                                  {deckCard.quantity}x
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Hover tooltip */}
+                        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white text-xs p-2 opacity-0 group-hover:opacity-100 transition-opacity rounded-b-lg">
+                          <div className="font-semibold truncate">{cardData?.name}</div>
+                          <div className="text-gray-300 truncate">{cardData?.set}</div>
+                          <div className="text-blue-300">{deckCard.quantity}x</div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                
+                {modalCards.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    No cards found for this filter.
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-5 sm:mt-6 flex justify-end">
+                <button
+                  type="button"
+                  className="inline-flex justify-center w-full sm:w-auto rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:text-sm"
+                  onClick={closeCardModal}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
