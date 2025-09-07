@@ -195,6 +195,12 @@ export default function CollectionPage() {
       setTimeout(() => setNotification(null), 3000)
     }
   }
+  
+  const handleAdvancedFiltersBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      setShowAdvancedFilters(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -371,7 +377,10 @@ export default function CollectionPage() {
 
       {/* Advanced Filters Modal */}
       {showAdvancedFilters && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={handleAdvancedFiltersBackdropClick}
+        >
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
