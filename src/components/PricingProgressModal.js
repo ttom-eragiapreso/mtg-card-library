@@ -130,10 +130,10 @@ export default function PricingProgressModal({
 
             {/* Progress Bar */}
             <div className="w-full">
-              <div className={`progress ${getProgressBarColor()} w-full h-3`} 
-                   value={progress.progress} 
-                   max="100">
-              </div>
+              <progress className={`progress ${getProgressBarColor()} w-full h-3`} 
+                        value={progress.progress} 
+                        max="100">
+              </progress>
               <div className="flex justify-between text-xs text-base-content/60 mt-1">
                 <span>Progress</span>
                 <span>{Math.round(progress.progress)}%</span>
