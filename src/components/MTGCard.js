@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import ManaCost from './ManaCost'
+import PriceDisplay from './PriceDisplay'
 import { useModal } from './ModalProvider'
 import { PlusIcon, CheckIcon } from '@heroicons/react/24/outline'
 
@@ -152,7 +153,7 @@ export default function MTGCard({
               <p className="text-gray-800 font-medium mb-3 text-sm">
                 {card.type}
               </p>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 mb-2">
                 <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-semibold rounded-md">
                   {card.set}
                 </span>
@@ -160,6 +161,15 @@ export default function MTGCard({
                   {card.rarity}
                 </span>
               </div>
+              
+              {/* Price display for compact variant */}
+              {card.pricing && (
+                <PriceDisplay 
+                  pricing={card.pricing} 
+                  foil={card.foil || false} 
+                  variant="compact"
+                />
+              )}
             </div>
             
             {/* Add Button */}
@@ -304,6 +314,17 @@ export default function MTGCard({
             </span>
           )}
         </div>
+
+        {/* Pricing Display */}
+        {card.pricing && (
+          <div className="mt-4">
+            <PriceDisplay 
+              pricing={card.pricing} 
+              foil={card.foil || false} 
+              variant="default"
+            />
+          </div>
+        )}
 
         {card.number && (
           <div className="text-sm text-gray-500 mt-3 pt-2 border-t border-gray-100">

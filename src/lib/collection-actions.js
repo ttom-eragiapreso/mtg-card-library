@@ -88,6 +88,11 @@ export async function addCardToCollection(cardData, collectionData = {}) {
       addedAt: new Date(),
       updatedAt: new Date()
     }
+    
+    // Ensure pricing data is included if available in the original card
+    if (cardData.pricing) {
+      collectionItem.pricing = cardData.pricing
+    }
 
     // Check if user already has this card (by multiverseid or id)
     const identifierQuery = cardData.multiverseid 

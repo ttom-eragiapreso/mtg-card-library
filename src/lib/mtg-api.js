@@ -54,8 +54,10 @@ scryfallApiClient.interceptors.response.use(
   }
 )
 
+// Pricing utilities will be imported separately to avoid circular dependencies
+
 // Transform Scryfall data to match expected MTG API format
-const transformScryfallCard = (scryfallCard) => {
+const transformScryfallCard = (scryfallCard, includePricing = true) => {
   const transformed = {
     // Core identification
     id: scryfallCard.id,
@@ -115,7 +117,20 @@ const transformScryfallCard = (scryfallCard) => {
     })),
     
     // Rulings - need to fetch separately from Scryfall
-    rulings: []
+    rulings: [],
+    
+    // Pricing data from Scryfall (if includePricing is true)
+    pricing: includePricing ? {
+      usd: scryfallCard.prices?.usd ? parseFloat(scryfallCard.prices.usd) : null,
+      usd_foil: scryfallCard.prices?.usd_foil ? parseFloat(scryfallCard.prices.usd_foil) : null,
+      usd_etched: scryfallCard.prices?.usd_etched ? parseFloat(scryfallCard.prices.usd_etched) : null,
+      eur: scryfallCard.prices?.eur ? parseFloat(scryfallCard.prices.eur) : null,
+      eur_foil: scryfallCard.prices?.eur_foil ? parseFloat(scryfallCard.prices.eur_foil) : null,
+      tix: scryfallCard.prices?.tix ? parseFloat(scryfallCard.prices.tix) : null,
+      purchase_uris: scryfallCard.purchase_uris || {},
+      last_updated: new Date(),
+      finishes: scryfallCard.finishes || ['nonfoil']
+    } : null
   }
   
   // Parse type line to extract supertypes, types, and subtypes

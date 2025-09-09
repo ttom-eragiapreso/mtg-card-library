@@ -133,6 +133,23 @@ export const cardSchema = {
   // Enhanced image sources for fallbacks
   imageSources: [String],
   
+  // Pricing data from Scryfall
+  pricing: {
+    usd: Number,
+    usd_foil: Number,
+    usd_etched: Number,
+    eur: Number,
+    eur_foil: Number,
+    tix: Number,
+    purchase_uris: {
+      tcgplayer: String,
+      cardmarket: String,
+      cardhoarder: String
+    },
+    last_updated: Date,
+    finishes: [String] // ['nonfoil', 'foil', 'etched']
+  },
+
   // Additional metadata
   createdAt: Date,
   updatedAt: Date,
@@ -203,6 +220,23 @@ export const userSchema = {
       duel: String,
       oldschool: String,
       premodern: String
+    },
+    
+    // Pricing data from Scryfall
+    pricing: {
+      usd: Number,
+      usd_foil: Number,
+      usd_etched: Number,
+      eur: Number,
+      eur_foil: Number,
+      tix: Number,
+      purchase_uris: {
+        tcgplayer: String,
+        cardmarket: String,
+        cardhoarder: String
+      },
+      last_updated: Date,
+      finishes: [String] // ['nonfoil', 'foil', 'etched']
     },
     
     // User-specific collection data
