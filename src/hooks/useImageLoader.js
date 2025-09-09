@@ -8,7 +8,8 @@ export function useImageLoader(imageUrl) {
     getImageStatus,
     markImageAsLoaded,
     markImageAsError,
-    subscribeToImage
+    subscribeToImage,
+    preloadImage
   } = useImageCache()
 
   // Get initial status from cache
@@ -23,7 +24,13 @@ export function useImageLoader(imageUrl) {
     }
 
     // Update state with current cache status
-    setImageState(getImageStatus(imageUrl))
+    const currentStatus = getImageStatus(imageUrl)
+    setImageState(currentStatus)
+
+    // If image is not loaded and not errored, preload it aggressively
+    if (!currentStatus.loaded && !currentStatus.error) {
+      preloadImage(imageUrl)
+    }
 
     // Subscribe to future changes
     const unsubscribe = subscribeToImage(imageUrl, (success) => {
@@ -35,7 +42,7 @@ export function useImageLoader(imageUrl) {
     })
 
     return unsubscribe
-  }, [imageUrl, getImageStatus, subscribeToImage])
+  }, [imageUrl, getImageStatus, subscribeToImage, preloadImage])
 
   const handleImageLoad = useCallback(() => {
     if (imageUrl) {
@@ -93,8 +100,9 @@ export function useImageLoaderWithFallback(imageUrls = []) {
       }
     }
 
-    // Image is loading, subscribe to changes
+    // Image is loading, subscribe to changes and preload
     setImageState({ loaded: false, error: false, loading: true })
+    imageCache.preloadImage(currentImageUrl)
     
     const unsubscribe = imageCache.subscribeToImage(currentImageUrl, (success) => {
       if (success) {

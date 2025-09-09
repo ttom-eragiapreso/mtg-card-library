@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useCallback, useRef } from 'react'
+import React, { createContext, useContext, useCallback, useRef, useEffect } from 'react'
 
 const ImageCacheContext = createContext(null)
 
@@ -8,6 +8,38 @@ export function ImageCacheProvider({ children }) {
   // Use ref instead of state to avoid re-renders when cache updates
   const cacheRef = useRef(new Map())
   const listenerRef = useRef(new Map())
+  // Keep actual Image objects in memory to prevent browser re-requests
+  const imageObjectsRef = useRef(new Map())
+
+  // Initialize cache from sessionStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = sessionStorage.getItem('imageCache')
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          Object.entries(parsed).forEach(([url, status]) => {
+            cacheRef.current.set(url, status)
+          })
+          console.log('🔄 Loaded image cache from sessionStorage:', cacheRef.current.size, 'entries')
+        }
+      } catch (error) {
+        console.warn('Failed to load image cache from sessionStorage:', error)
+      }
+    }
+  }, [])
+
+  // Save cache to sessionStorage when it changes
+  const saveToSessionStorage = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cacheObject = Object.fromEntries(cacheRef.current)
+        sessionStorage.setItem('imageCache', JSON.stringify(cacheObject))
+      } catch (error) {
+        console.warn('Failed to save image cache to sessionStorage:', error)
+      }
+    }
+  }, [])
 
   const isImageLoaded = useCallback((imageUrl) => {
     if (!imageUrl) return false
@@ -18,25 +50,27 @@ export function ImageCacheProvider({ children }) {
     if (!imageUrl) return
     
     cacheRef.current.set(imageUrl, true)
+    saveToSessionStorage()
     
     // Notify all listeners for this URL
     const listeners = listenerRef.current.get(imageUrl)
     if (listeners) {
       listeners.forEach(callback => callback(true))
     }
-  }, [])
+  }, [saveToSessionStorage])
 
   const markImageAsError = useCallback((imageUrl) => {
     if (!imageUrl) return
     
     cacheRef.current.set(imageUrl, false)
+    saveToSessionStorage()
     
     // Notify all listeners for this URL
     const listeners = listenerRef.current.get(imageUrl)
     if (listeners) {
       listeners.forEach(callback => callback(false))
     }
-  }, [])
+  }, [saveToSessionStorage])
 
   const subscribeToImage = useCallback((imageUrl, callback) => {
     if (!imageUrl) return () => {}
@@ -79,7 +113,14 @@ export function ImageCacheProvider({ children }) {
     
     return new Promise((resolve) => {
       const img = new Image()
+      
+      // Set attributes to help with browser caching
+      img.crossOrigin = 'anonymous'
+      img.referrerPolicy = 'no-referrer'
+      
       img.onload = () => {
+        // Keep the loaded Image object in memory to prevent browser re-requests
+        imageObjectsRef.current.set(imageUrl, img)
         markImageAsLoaded(imageUrl)
         resolve(true)
       }
@@ -87,6 +128,8 @@ export function ImageCacheProvider({ children }) {
         markImageAsError(imageUrl)
         resolve(false)
       }
+      
+      // Set src last to trigger loading
       img.src = imageUrl
     })
   }, [markImageAsLoaded, markImageAsError])
