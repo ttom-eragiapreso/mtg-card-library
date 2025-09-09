@@ -27,20 +27,18 @@ export default function PricingProgressModal({
     
     setIsProcessing(true)
     setCanClose(false)
-    setProgress({ progress: 0, message: 'Starting price updates...', stage: 'initializing' })
+    setProgress({ progress: 0, message: 'Updating collection prices...', stage: 'updating' })
     
     try {
-      const result = await onStart((progressData) => {
-        setProgress(progressData)
-      })
+      const result = await onStart()
       
       setResults(result)
       if (result.success) {
-        setProgress(prev => ({ 
-          ...prev, 
+        setProgress({ 
           stage: 'complete',
-          progress: 100
-        }))
+          progress: 100,
+          message: `Successfully updated pricing for ${result.updated} cards!`
+        })
       } else {
         setProgress({
           stage: 'error',
@@ -130,13 +128,17 @@ export default function PricingProgressModal({
 
             {/* Progress Bar */}
             <div className="w-full">
-              <progress className={`progress ${getProgressBarColor()} w-full h-3`} 
-                        value={progress.progress} 
-                        max="100">
-              </progress>
+              {isProcessing && progress.stage !== 'complete' && progress.stage !== 'error' ? (
+                <progress className="progress progress-primary w-full h-3"></progress>
+              ) : (
+                <progress className={`progress ${getProgressBarColor()} w-full h-3`} 
+                          value={progress.progress} 
+                          max="100">
+                </progress>
+              )}
               <div className="flex justify-between text-xs text-base-content/60 mt-1">
                 <span>Progress</span>
-                <span>{Math.round(progress.progress)}%</span>
+                <span>{isProcessing && progress.stage !== 'complete' && progress.stage !== 'error' ? 'Processing...' : `${Math.round(progress.progress)}%`}</span>
               </div>
             </div>
 

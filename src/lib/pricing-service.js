@@ -1,9 +1,10 @@
 import axios from 'axios'
+import { queueRequest } from './request-queue'
 
 const SCRYFALL_API_BASE_URL = process.env.SCRYFALL_API_BASE_URL || 'https://api.scryfall.com'
 
 // Rate limiting - Scryfall allows 10 requests per second with bursts
-// We'll be more conservative and limit to 5 requests per second
+// Balanced rate limiting - 5 requests per second (Scryfall allows 10)
 let requestCount = 0
 let requestWindow = Date.now() + 1000 // 1 second window
 
@@ -41,18 +42,40 @@ scryfallPricingClient.interceptors.request.use((config) => {
 scryfallPricingClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 429) {
-      throw new Error('Rate limit exceeded. Please try again later.')
-    }
     if (error.response?.status === 404) {
       throw new Error('Card not found.')
     }
     if (error.code === 'ECONNABORTED') {
       throw new Error('Request timed out. Please try again.')
     }
-    throw new Error(error.response?.data?.details || error.message || 'An error occurred while fetching pricing data.')
+    // Propagate the original error for 429 or other cases; our retry wrapper will handle it
+    throw error
   }
 )
+
+// Helper with exponential backoff retries for GET requests using pricing queue
+async function getWithRetry(url, config = {}, maxRetries = 4) {
+  const baseDelay = 500 // ms
+  let attempt = 0
+  while (true) {
+    try {
+      const res = await queueRequest(async () => {
+        return await scryfallPricingClient.get(url, config)
+      }, 'pricing')
+      return res
+    } catch (err) {
+      const status = err.response?.status
+      const message = err.message || ''
+      const rateLimited = status === 429 || message.includes('Rate limit exceeded')
+      if (!rateLimited || attempt >= maxRetries) {
+        throw err
+      }
+      const delay = Math.min(baseDelay * Math.pow(2, attempt), 8000)
+      await new Promise(r => setTimeout(r, delay))
+      attempt++
+    }
+  }
+}
 
 // Transform Scryfall pricing data to our format
 const transformPricingData = (scryfallCard) => {
@@ -104,10 +127,13 @@ const transformPricingData = (scryfallCard) => {
 // Fetch pricing data for a single card by Scryfall ID
 export const fetchCardPricing = async (scryfallId) => {
   try {
-    const response = await scryfallPricingClient.get(`/cards/${scryfallId}`)
+    const response = await getWithRetry(`/cards/${scryfallId}`)
     return transformPricingData(response.data)
   } catch (error) {
     console.error(`Error fetching pricing for card ${scryfallId}:`, error)
+    if (error.message.includes('Rate limit exceeded')) {
+      return null // Prevent throwing error on rate limit exceeded
+    }
     throw error
   }
 }
@@ -140,7 +166,7 @@ export const fetchMultipleCardPricing = async (scryfallIds) => {
       
       // Add delay between batches to respect rate limits
       if (i + batchSize < scryfallIds.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await new Promise(resolve => setTimeout(resolve, 800))
       }
     } catch (error) {
       console.error(`Error processing batch starting at index ${i}:`, error)
@@ -159,7 +185,7 @@ export const searchCardPricing = async (name, setCode = null) => {
       query += ` set:${setCode.toLowerCase()}`
     }
     
-    const response = await scryfallPricingClient.get('/cards/search', {
+    const response = await getWithRetry('/cards/search', {
       params: {
         q: query,
         unique: 'prints',

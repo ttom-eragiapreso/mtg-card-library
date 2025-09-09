@@ -11,6 +11,7 @@ import PricingStatsCard from '@/components/PricingStatsCard'
 import TopValuedCardsGrid from '@/components/TopValuedCardsGrid'
 import PricingControls from '@/components/PricingControls'
 import CollectionValueQuickActions from '@/components/CollectionValueQuickActions'
+import Navigation from '@/components/Navigation'
 
 export default async function CollectionValuePage({ searchParams }) {
   const session = await getServerSession(authOptions)
@@ -31,12 +32,15 @@ export default async function CollectionValuePage({ searchParams }) {
 
   if (!valueResult.success || !statsResult.success || !topCardsResult.success) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <div className="container mx-auto px-4 py-8">
         <div className="text-center py-12">
           <div className="text-red-600 text-lg mb-4">Error loading collection data</div>
           <p className="text-gray-600">
             {valueResult.error || statsResult.error || topCardsResult.error}
           </p>
+          </div>
         </div>
       </div>
     )
@@ -47,7 +51,9 @@ export default async function CollectionValuePage({ searchParams }) {
   const { cards: topCards } = topCardsResult
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
+      <div className="container mx-auto px-4 py-8">
       {/* Page Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -109,6 +115,7 @@ export default async function CollectionValuePage({ searchParams }) {
           Market values fluctuate and actual selling prices may vary. 
           Pricing data is provided for informational purposes only.
         </p>
+        </div>
       </div>
     </div>
   )

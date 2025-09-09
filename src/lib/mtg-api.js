@@ -1,9 +1,10 @@
 import axios from 'axios'
+import { queueRequest } from './request-queue'
 
 const SCRYFALL_API_BASE_URL = process.env.SCRYFALL_API_BASE_URL || 'https://api.scryfall.com'
 
 // Rate limiting - Scryfall allows 10 requests per second with bursts
-// We'll be more conservative and limit to 5 requests per second
+// Balanced rate limiting - 5 requests per second (Scryfall allows 10)
 let requestCount = 0
 let requestWindow = Date.now() + 1000 // 1 second window
 
@@ -41,18 +42,40 @@ scryfallApiClient.interceptors.request.use((config) => {
 scryfallApiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 429) {
-      throw new Error('Rate limit exceeded. Please try again later.')
-    }
     if (error.response?.status === 404) {
       throw new Error('Card not found.')
     }
     if (error.code === 'ECONNABORTED') {
       throw new Error('Request timed out. Please try again.')
     }
-    throw new Error(error.response?.data?.details || error.message || 'An error occurred while fetching data.')
+    // Propagate the original error for 429 or other cases; our retry wrapper will handle it
+    throw error
   }
 )
+
+// Helper with exponential backoff retries for GET requests using queue
+async function getWithRetry(url, config = {}, maxRetries = 4) {
+  const baseDelay = 500 // ms
+  let attempt = 0
+  while (true) {
+    try {
+      const res = await queueRequest(async () => {
+        return await scryfallApiClient.get(url, config)
+      }, 'general')
+      return res
+    } catch (err) {
+      const status = err.response?.status
+      const message = err.message || ''
+      const rateLimited = status === 429 || message.includes('Rate limit exceeded')
+      if (!rateLimited || attempt >= maxRetries) {
+        throw err
+      }
+      const delay = Math.min(baseDelay * Math.pow(2, attempt), 8000)
+      await new Promise(r => setTimeout(r, delay))
+      attempt++
+    }
+  }
+}
 
 // Pricing utilities will be imported separately to avoid circular dependencies
 
@@ -236,13 +259,13 @@ const getEnglishVersionsFromForeignSearch = async (foreignCards) => {
       const oracleQuery = batch.map(id => `oracle_id:${id}`).join(' or ')
       const fullQuery = `(${oracleQuery}) lang:en`
       
-      const response = await scryfallApiClient.get('/cards/search', {
-        params: {
-          q: fullQuery,
-          unique: 'prints',
-          order: 'released'
-        }
-      })
+    const response = await getWithRetry('/cards/search', {
+      params: {
+        q: fullQuery,
+        unique: 'prints',
+        order: 'released'
+      }
+    })
       
       if (response.data && response.data.data) {
         // Transform and process English versions
@@ -254,7 +277,7 @@ const getEnglishVersionsFromForeignSearch = async (foreignCards) => {
       
       // Add a small delay between batches to respect rate limits
       if (i + batchSize < uniqueOracleIds.length) {
-        await new Promise(resolve => setTimeout(resolve, 300))
+        await new Promise(resolve => setTimeout(resolve, 500))
       }
     } catch (error) {
       console.error(`Error fetching English versions for batch starting at index ${i}:`, error)
@@ -305,7 +328,7 @@ export const searchCardsByExactName = async (name, page = 1, pageSize = 100) => 
 // Search cards by name using Scryfall API
 export const searchCardsByName = async (name, page = 1, pageSize = 100, _includeForeign = true) => {
   try {
-    const response = await scryfallApiClient.get('/cards/search', {
+    const response = await getWithRetry('/cards/search', {
       params: {
         q: name, // Scryfall uses 'q' for general search
         unique: 'prints', // Get all printings, not just unique cards
@@ -392,7 +415,7 @@ export const searchCardsByLanguage = async (name, language = 'English', page = 1
     // Search for the foreign language version first
     let query = `${name} lang:${langCode}`
     
-    const foreignSearchResponse = await scryfallApiClient.get('/cards/search', {
+    const foreignSearchResponse = await getWithRetry('/cards/search', {
       params: {
         q: query,
         page: page
@@ -405,7 +428,7 @@ export const searchCardsByLanguage = async (name, language = 'English', page = 1
     // This helps catch cards where the translation might not be exact
     if (foreignCards.length === 0) {
       try {
-        const broadSearchResponse = await scryfallApiClient.get('/cards/search', {
+        const broadSearchResponse = await getWithRetry('/cards/search', {
           params: {
             q: name,
             page: page
@@ -472,7 +495,7 @@ export const searchCardsByLanguage = async (name, language = 'English', page = 1
 // Get card by specific ID using Scryfall API
 export const getCardById = async (id) => {
   try {
-    const response = await scryfallApiClient.get(`/cards/${id}`)
+    const response = await getWithRetry(`/cards/${id}`)
     const transformedCard = transformScryfallCard(response.data)
     return processCardData(transformedCard)
   } catch (error) {
@@ -485,7 +508,7 @@ export const getCardById = async (id) => {
 export const getAllVersionsOfCard = async (name) => {
   try {
     // Use Scryfall's exact name search to get all printings
-    const response = await scryfallApiClient.get('/cards/search', {
+    const response = await getWithRetry('/cards/search', {
       params: {
         q: `!"${name}"`, // Exact name search in Scryfall
         unique: 'prints' // Get all printings
@@ -555,7 +578,7 @@ export const searchCardsWithFilters = async (filters = {}) => {
     
     const query = queryParts.join(' ') || '*' // Default to all cards if no filters
     
-    const response = await scryfallApiClient.get('/cards/search', {
+    const response = await getWithRetry('/cards/search', {
       params: {
         q: query,
         page: filters.page || 1
@@ -589,7 +612,7 @@ export const searchCardsWithFilters = async (filters = {}) => {
 // Get sets information using Scryfall API
 export const getAllSets = async () => {
   try {
-    const response = await scryfallApiClient.get('/sets')
+    const response = await getWithRetry('/sets')
     const scryfallSets = response.data.data || []
     
     // Transform Scryfall sets to match expected format
@@ -612,7 +635,7 @@ export const getAllSets = async () => {
 // Get types using Scryfall catalog
 export const getAllTypes = async () => {
   try {
-    const response = await scryfallApiClient.get('/catalog/card-types')
+    const response = await getWithRetry('/catalog/card-types')
     return response.data.data || []
   } catch (error) {
     console.error('Error fetching types:', error)
@@ -623,7 +646,7 @@ export const getAllTypes = async () => {
 // Get subtypes using Scryfall catalog
 export const getAllSubtypes = async () => {
   try {
-    const response = await scryfallApiClient.get('/catalog/creature-types')
+    const response = await getWithRetry('/catalog/creature-types')
     return response.data.data || []
   } catch (error) {
     console.error('Error fetching subtypes:', error)
@@ -634,7 +657,7 @@ export const getAllSubtypes = async () => {
 // Get supertypes using Scryfall catalog
 export const getAllSupertypes = async () => {
   try {
-    const response = await scryfallApiClient.get('/catalog/supertypes')
+    const response = await getWithRetry('/catalog/supertypes')
     return response.data.data || []
   } catch (error) {
     console.error('Error fetching supertypes:', error)

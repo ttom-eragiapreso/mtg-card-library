@@ -13,9 +13,9 @@ export default function CollectionValueQuickActions() {
     setIsProgressModalOpen(true)
   }
 
-  const handleStartPricingUpdate = async (onProgress) => {
+  const handleStartPricingUpdate = async () => {
     try {
-      const result = await updateCollectionPricing({ forceUpdate: false }, onProgress)
+      const result = await updateCollectionPricing({ forceUpdate: false })
       if (result.success) {
         // Refresh the page to show updated data after completion
         setTimeout(() => {

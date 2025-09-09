@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { redirect } from 'next/navigation'
 import { getUserCollection, removeCardFromCollection } from '@/lib/collection-actions'
+import { getCollectionValue } from '@/lib/pricing-actions'
+import { formatPrice } from '@/lib/pricing-service'
 import { MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline'
 import Navigation from '@/components/Navigation'
 import Input from '@/components/ui/Input'
@@ -39,7 +41,8 @@ export default function CollectionPage() {
   const [stats, setStats] = useState({
     totalCards: 0,
     uniqueCards: 0,
-    totalValue: 0
+    currentValue: 0,  // Current market value
+    currency: 'USD'
   })
 
   // Redirect to sign-in if not authenticated
@@ -70,13 +73,11 @@ export default function CollectionPage() {
           // Calculate stats
           const totalCards = result.collection.reduce((sum, item) => sum + (item.quantity || 1), 0)
           const uniqueCards = result.collection.length
-          const totalValue = result.collection.reduce((sum, item) => {
-            const price = parseFloat(item.acquiredPrice) || 0
-            const quantity = parseInt(item.quantity) || 1
-            return sum + (price * quantity)
-          }, 0)
           
-          setStats({ totalCards, uniqueCards, totalValue })
+          setStats({ totalCards, uniqueCards, currentValue: 0, currency: 'USD' })
+          
+          // Load current market value
+          loadCollectionValue()
         } else {
           setError(result.error || 'Failed to load collection')
         }
@@ -90,6 +91,22 @@ export default function CollectionPage() {
 
     loadCollection()
   }, [session])
+  
+  // Load current market value
+  const loadCollectionValue = async () => {
+    try {
+      const valueResult = await getCollectionValue('usd')
+      if (valueResult.success) {
+        setStats(prev => ({
+          ...prev,
+          currentValue: valueResult.value.total,
+          currency: valueResult.value.currency
+        }))
+      }
+    } catch (error) {
+      console.error('Error loading collection value:', error)
+    }
+  }
 
   // Filter and sort collection
   useEffect(() => {
@@ -244,8 +261,15 @@ export default function CollectionPage() {
             </h1>
             <div className="flex flex-col sm:flex-row gap-3">
               <Link
-                href="/collection/statistics"
+                href="/collection/value"
                 className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all duration-200"
+              >
+                <span className="text-lg mr-2">💰</span>
+                Collection Value
+              </Link>
+              <Link
+                href="/collection/statistics"
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all duration-200"
               >
                 <span className="text-lg mr-2">📊</span>
                 View Statistics
@@ -262,7 +286,7 @@ export default function CollectionPage() {
         </div>
 
         {/* Collection Stats */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-6 mb-6 sm:mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6 mb-6 sm:mb-8">
           <div className="bg-white rounded-lg sm:rounded-xl shadow-md p-3 sm:p-6 text-center">
             <div className="text-lg sm:text-2xl md:text-3xl font-bold text-blue-600 mb-1 sm:mb-2">{stats.totalCards}</div>
             <div className="text-xs sm:text-sm md:text-base text-gray-600">Total Cards</div>
@@ -273,9 +297,9 @@ export default function CollectionPage() {
           </div>
           <div className="bg-white rounded-lg sm:rounded-xl shadow-md p-3 sm:p-6 text-center">
             <div className="text-lg sm:text-2xl md:text-3xl font-bold text-green-600 mb-1 sm:mb-2">
-              ${stats.totalValue.toFixed(2)}
+              {stats.currentValue ? formatPrice(stats.currentValue, 'usd') : '$0.00'}
             </div>
-            <div className="text-xs sm:text-sm md:text-base text-gray-600">Estimated Value</div>
+            <div className="text-xs sm:text-sm md:text-base text-gray-600">Current Value</div>
           </div>
         </div>
 

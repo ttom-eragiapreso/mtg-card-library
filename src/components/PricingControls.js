@@ -20,9 +20,12 @@ export default function PricingControls({ currency = 'usd' }) {
     setIsProgressModalOpen(true)
   }
 
-  const handleStartPricingUpdate = async (onProgress) => {
+  const handleStartPricingUpdate = async (fullRefresh = false) => {
     try {
-      const result = await updateCollectionPricing({ forceUpdate: false }, onProgress)
+      const result = await updateCollectionPricing({ 
+        forceUpdate: false,
+        fullRefresh: fullRefresh 
+      })
       if (result.success) {
         // Refresh the page to show updated data after completion
         setTimeout(() => {

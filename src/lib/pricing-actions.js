@@ -89,8 +89,25 @@ export async function updateCardPricing(cardId, multiverseid) {
   }
 }
 
-// Update pricing for all cards in a user's collection with progress tracking
-export async function updateCollectionPricing(options = {}, onProgress) {
+// Helper to get current card value for smart update logic
+const getCurrentCardValue = (card) => {
+  if (!card.pricing || !card.quantity) return 0
+  
+  const pricing = card.pricing
+  let unitPrice = null
+  
+  // Get the appropriate price based on foil status
+  if (card.foil) {
+    unitPrice = pricing.usd_foil || pricing.usd_etched || pricing.usd
+  } else {
+    unitPrice = pricing.usd
+  }
+  
+  return unitPrice ? unitPrice * card.quantity : 0
+}
+
+// Update pricing for all cards in a user's collection with smart refresh logic
+export async function updateCollectionPricing(options = {}) {
   try {
     const session = await getServerSession(authOptions)
     
@@ -100,15 +117,14 @@ export async function updateCollectionPricing(options = {}, onProgress) {
 
     const { 
       forceUpdate = false, 
-      maxAgeHours = 24,
-      batchSize = 5 // Reduced batch size for better progress tracking
+      fullRefresh = false, // Force update all cards regardless of value
+      maxAgeHours = 24, // For cards worth >$1 (daily updates)
+      maxAgeHoursAll = 24 * 30, // For full refresh of cheap cards (monthly)
+      batchSize = 5 // Balanced batch size for good performance
     } = options
 
     const userId = new ObjectId(session.user.id)
     const usersCollection = await getUsersCollection()
-
-    // Initial progress report
-    if (onProgress) onProgress({ stage: 'initializing', message: 'Loading your collection...', progress: 0 })
 
     // Get user's collection
     const user = await usersCollection.findOne({ _id: userId })
@@ -116,52 +132,45 @@ export async function updateCollectionPricing(options = {}, onProgress) {
       return { success: true, message: 'No cards in collection to update', updated: 0 }
     }
 
-    if (onProgress) onProgress({ stage: 'analyzing', message: 'Analyzing cards that need price updates...', progress: 5 })
-
-    // Filter cards that need pricing updates
+    // Filter cards that need pricing updates based on smart logic
     const cardsToUpdate = user.collection.filter(card => {
       if (!card.id) return false // Skip cards without Scryfall ID
       
-      if (forceUpdate) return true
+      if (forceUpdate || fullRefresh) return true
       
-      // Check if pricing is stale
-      return isPricingStale(card.pricing?.last_updated, maxAgeHours)
+      // Check if this card has pricing data
+      const hasCurrentPricing = card.pricing && card.pricing.last_updated
+      
+      if (!hasCurrentPricing) {
+        return true // Always update cards without pricing
+      }
+      
+      // Get current value to determine update frequency
+      const currentValue = getCurrentCardValue(card)
+      
+      if (currentValue >= 1.0) {
+        // Cards worth $1+ get updated daily (24 hours)
+        return isPricingStale(card.pricing.last_updated, maxAgeHours)
+      } else {
+        // Cards worth <$1 get updated monthly (30 days) 
+        return isPricingStale(card.pricing.last_updated, maxAgeHoursAll)
+      }
     })
 
     if (cardsToUpdate.length === 0) {
-      if (onProgress) onProgress({ stage: 'complete', message: 'All card prices are up to date!', progress: 100 })
       return { success: true, message: 'All card prices are up to date', updated: 0 }
-    }
-
-    if (onProgress) {
-      onProgress({ 
-        stage: 'fetching', 
-        message: `Found ${cardsToUpdate.length} cards to update. Fetching pricing data...`,
-        progress: 10,
-        total: cardsToUpdate.length
-      })
     }
 
     // Extract Scryfall IDs
     const scryfallIds = cardsToUpdate.map(card => card.id)
     
-    // Fetch pricing data in batches with progress tracking
+    // Fetch pricing data in batches
     const pricingData = []
     const totalBatches = Math.ceil(scryfallIds.length / batchSize)
     
     for (let i = 0; i < scryfallIds.length; i += batchSize) {
       const batch = scryfallIds.slice(i, i + batchSize)
       const batchNumber = Math.floor(i / batchSize) + 1
-      
-      if (onProgress) {
-        onProgress({
-          stage: 'fetching',
-          message: `Fetching prices for batch ${batchNumber} of ${totalBatches}...`,
-          progress: 10 + (batchNumber / totalBatches * 50), // 10-60% for fetching
-          batch: batchNumber,
-          totalBatches
-        })
-      }
       
       try {
         // Process batch with individual error handling
@@ -183,22 +192,7 @@ export async function updateCollectionPricing(options = {}, onProgress) {
         }
       } catch (error) {
         console.error(`Error processing batch ${batchNumber}:`, error)
-        if (onProgress) {
-          onProgress({
-            stage: 'warning',
-            message: `Warning: Batch ${batchNumber} failed, continuing with others...`,
-            progress: 10 + (batchNumber / totalBatches * 50)
-          })
-        }
       }
-    }
-
-    if (onProgress) {
-      onProgress({
-        stage: 'updating',
-        message: `Updating ${pricingData.length} cards in your collection...`,
-        progress: 65
-      })
     }
 
     // Create a map of pricing data by Scryfall ID
@@ -209,12 +203,10 @@ export async function updateCollectionPricing(options = {}, onProgress) {
       }
     })
 
-    // Update cards with new pricing data with progress tracking
+    // Update cards with new pricing data
     let updatedCount = 0
-    const totalToUpdate = cardsToUpdate.length
     
-    for (let index = 0; index < cardsToUpdate.length; index++) {
-      const card = cardsToUpdate[index]
+    for (const card of cardsToUpdate) {
       const pricing = pricingMap.get(card.id)
       
       if (pricing) {
@@ -240,39 +232,10 @@ export async function updateCollectionPricing(options = {}, onProgress) {
           console.error(`Failed to update pricing for card ${card.name}:`, error)
         }
       }
-      
-      // Progress update every 10 cards or on last card
-      if ((index + 1) % 10 === 0 || index === totalToUpdate - 1) {
-        if (onProgress) {
-          onProgress({
-            stage: 'updating',
-            message: `Updated ${updatedCount} of ${totalToUpdate} cards...`,
-            progress: 65 + ((index + 1) / totalToUpdate * 30) // 65-95% for updating
-          })
-        }
-      }
-    }
-
-    if (onProgress) {
-      onProgress({
-        stage: 'finalizing',
-        message: 'Finalizing updates...',
-        progress: 95
-      })
     }
 
     revalidatePath('/collection')
     revalidatePath('/collection/value')
-
-    if (onProgress) {
-      onProgress({
-        stage: 'complete',
-        message: `Successfully updated pricing for ${updatedCount} cards!`,
-        progress: 100,
-        updated: updatedCount,
-        total: cardsToUpdate.length
-      })
-    }
 
     return { 
       success: true, 
@@ -283,13 +246,6 @@ export async function updateCollectionPricing(options = {}, onProgress) {
     }
   } catch (error) {
     console.error('Error updating collection pricing:', error)
-    if (onProgress) {
-      onProgress({
-        stage: 'error',
-        message: `Error: ${error.message}`,
-        progress: 0
-      })
-    }
     return { success: false, error: error.message }
   }
 }
@@ -426,6 +382,14 @@ export async function getTopValuedCards(currency = 'usd', limit = 10) {
     console.error('Error getting top valued cards:', error)
     return { success: false, error: error.message }
   }
+}
+
+// Full refresh - updates all cards regardless of age or value (monthly operation)
+export async function fullCollectionPricingRefresh() {
+  return await updateCollectionPricing({ 
+    fullRefresh: true,
+    forceUpdate: true 
+  })
 }
 
 // Refresh pricing for specific cards by name (useful for newly added cards)
