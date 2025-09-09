@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import ManaCost from './ManaCost'
 import { useModal } from './ModalProvider'
+import { useImageLoaderWithFallback } from '@/hooks/useImageLoader'
 import { PlusIcon, CheckIcon } from '@heroicons/react/24/outline'
 
 export default function MTGCard({ 
@@ -14,10 +15,42 @@ export default function MTGCard({
   className = ''
 }) {
   const [isAdding, setIsAdding] = useState(false)
-  const [imageError, setImageError] = useState(false)
-  const [imageLoaded, setImageLoaded] = useState(false)
-  const [imageLoading, setImageLoading] = useState(true)
   const { showImageModal } = useModal()
+
+  // Build image fallback URLs
+  const imageUrls = useMemo(() => {
+    const sources = []
+    
+    // 1. Direct imageUrl from MTG API
+    if (card.imageUrl) {
+      sources.push(card.imageUrl)
+    }
+    
+    // 2. Gatherer images using multiverseid
+    if (card.multiverseid) {
+      sources.push(`https://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=${card.multiverseid}&type=card`)
+      sources.push(`http://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=${card.multiverseid}&type=card`)
+    }
+    
+    // 3. Scryfall API fallback (if we have set and number)
+    if (card.set && card.number) {
+      const setCode = card.set.toLowerCase()
+      const cardNumber = card.number.toLowerCase().replace(/[^a-z0-9]/g, '')
+      sources.push(`https://api.scryfall.com/cards/${setCode}/${cardNumber}?format=image`)
+    }
+    
+    return sources
+  }, [card.imageUrl, card.multiverseid, card.set, card.number])
+
+  // Use global image cache
+  const {
+    currentImageUrl: imageUrl,
+    imageLoaded,
+    imageError, 
+    imageLoading,
+    handleImageLoad,
+    handleImageError
+  } = useImageLoaderWithFallback(imageUrls)
 
   const handleAddToCollection = async () => {
     if (!onAddToCollection || isInCollection || isAdding) return
@@ -44,54 +77,11 @@ export default function MTGCard({
     }
   }
 
-  const getImageUrl = () => {
-    // Priority order for image sources
-    const imageSources = []
-    
-    // 1. Direct imageUrl from MTG API
-    if (card.imageUrl && !imageError) {
-      imageSources.push(card.imageUrl)
-    }
-    
-    // 2. Gatherer images using multiverseid
-    if (card.multiverseid) {
-      imageSources.push(`https://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=${card.multiverseid}&type=card`)
-    }
-    
-    // 3. Alternative Gatherer URL format
-    if (card.multiverseid) {
-      imageSources.push(`http://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=${card.multiverseid}&type=card`)
-    }
-    
-    // 4. Scryfall API fallback (if we have set and number)
-    if (card.set && card.number) {
-      const setCode = card.set.toLowerCase()
-      const cardNumber = card.number.toLowerCase().replace(/[^a-z0-9]/g, '')
-      imageSources.push(`https://api.scryfall.com/cards/${setCode}/${cardNumber}?format=image`)
-    }
-    
-    // Return first available source
-    return imageSources[0] || null
-  }
-  
-  const handleImageLoad = () => {
-    setImageLoaded(true)
-    setImageLoading(false)
-    setImageError(false)
-  }
-  
-  const handleImageError = () => {
-    setImageError(true)
-    setImageLoading(false)
-    setImageLoaded(false)
-  }
 
   const handleImageClick = (e) => {
     e.preventDefault()
     e.stopPropagation()
-    console.log('Image clicked!', { imageUrl, imageLoaded })
     if (imageUrl) {
-      console.log('Showing modal with provider')
       showImageModal({
         imageUrl,
         altText: card.name,
@@ -99,8 +89,6 @@ export default function MTGCard({
       })
     }
   }
-
-  const imageUrl = getImageUrl()
 
   if (variant === 'compact') {
     return (

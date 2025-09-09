@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useModal } from './ModalProvider'
+import { useImageLoaderWithFallback } from '@/hooks/useImageLoader'
 import { TrashIcon, InformationCircleIcon, RectangleStackIcon, CheckIcon } from '@heroicons/react/24/outline'
 import { getUserDecks, addCardToDeck } from '@/lib/deck-actions'
 
@@ -11,9 +12,6 @@ export default function CollectionCard({
   viewMode = 'grid',
   className = ''
 }) {
-  const [imageError, setImageError] = useState(false)
-  const [imageLoaded, setImageLoaded] = useState(false)
-  const [imageLoading, setImageLoading] = useState(true)
   const [showDetails, setShowDetails] = useState(false)
   const [showAddToDeck, setShowAddToDeck] = useState(false)
   const [decks, setDecks] = useState([])
@@ -24,6 +22,38 @@ export default function CollectionCard({
   
   // After migration, card data is directly in collectionItem
   const card = collectionItem
+
+  // Build image fallback URLs
+  const imageUrls = useMemo(() => {
+    const sources = []
+    
+    if (card.imageUrl) {
+      sources.push(card.imageUrl)
+    }
+    
+    if (card.multiverseid) {
+      sources.push(`https://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=${card.multiverseid}&type=card`)
+      sources.push(`http://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=${card.multiverseid}&type=card`)
+    }
+    
+    if (card.set && card.number) {
+      const setCode = card.set.toLowerCase()
+      const cardNumber = card.number.toLowerCase().replace(/[^a-z0-9]/g, '')
+      sources.push(`https://api.scryfall.com/cards/${setCode}/${cardNumber}?format=image`)
+    }
+    
+    return sources
+  }, [card.imageUrl, card.multiverseid, card.set, card.number])
+
+  // Use global image cache
+  const {
+    currentImageUrl: imageUrl,
+    imageLoaded,
+    imageError, 
+    imageLoading,
+    handleImageLoad,
+    handleImageError
+  } = useImageLoaderWithFallback(imageUrls)
 
   // Load user's decks when Add to Deck is opened
   useEffect(() => {
@@ -49,47 +79,10 @@ export default function CollectionCard({
     loadDecks()
   }, [showAddToDeck, card])
 
-  const getImageUrl = () => {
-    // Priority order for image sources
-    const imageSources = []
-    
-    if (card.imageUrl && !imageError) {
-      imageSources.push(card.imageUrl)
-    }
-    
-    if (card.multiverseid) {
-      imageSources.push(`https://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=${card.multiverseid}&type=card`)
-    }
-    
-    if (card.multiverseid) {
-      imageSources.push(`http://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=${card.multiverseid}&type=card`)
-    }
-    
-    if (card.set && card.number) {
-      const setCode = card.set.toLowerCase()
-      const cardNumber = card.number.toLowerCase().replace(/[^a-z0-9]/g, '')
-      imageSources.push(`https://api.scryfall.com/cards/${setCode}/${cardNumber}?format=image`)
-    }
-    
-    return imageSources[0] || null
-  }
-  
-  const handleImageLoad = () => {
-    setImageLoaded(true)
-    setImageLoading(false)
-    setImageError(false)
-  }
-  
-  const handleImageError = () => {
-    setImageError(true)
-    setImageLoading(false)
-    setImageLoaded(false)
-  }
 
   const handleImageClick = (e) => {
     e.preventDefault()
     e.stopPropagation()
-    const imageUrl = getImageUrl()
     if (imageUrl) {
       showImageModal({
         imageUrl,
@@ -136,8 +129,6 @@ export default function CollectionCard({
     // Use setName if available, otherwise fall back to set code
     return card.setName || card.set || 'Unknown Set'
   }
-
-  const imageUrl = getImageUrl()
 
   if (viewMode === 'list') {
     return (
