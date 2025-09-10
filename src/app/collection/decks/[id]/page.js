@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { redirect, useParams } from 'next/navigation'
-import { getDeckById, getDeckAnalytics, updateDeck, removeCardFromDeck, addBasicLandsToDeck, setDeckCoverCard } from '@/lib/deck-actions'
+import { getDeckById, getDeckAnalytics, updateDeck, removeCardFromDeck, addBasicLandsToDeck, setDeckCoverCard, addCardToDeck } from '@/lib/deck-actions'
 import { getUserCollection } from '@/lib/collection-actions'
 import { 
   ChartBarIcon, 
@@ -26,6 +26,7 @@ import BasicLandsAdder from '@/components/BasicLandsAdder'
 import { useModal } from '@/components/ModalProvider'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
+import DeckCard from '@/components/DeckCard'
 
 export default function DeckViewPage() {
   const { data: session, status } = useSession()
@@ -159,12 +160,8 @@ export default function DeckViewPage() {
   }
 
   const handleRemoveCard = async (cardData) => {
-    if (!window.confirm(`Remove ${cardData.cardData?.name} from deck?`)) {
-      return
-    }
-
     try {
-      const result = await removeCardFromDeck(deckId, cardData)
+      const result = await removeCardFromDeck(deckId, cardData, 1) // Remove one copy
       if (result.success) {
         // Reload deck data
         const [deckResult, analyticsResult] = await Promise.all([
@@ -184,6 +181,42 @@ export default function DeckViewPage() {
     } catch (error) {
       console.error('Error removing card:', error)
       setNotification({ type: 'error', message: 'An error occurred while removing the card' })
+      setTimeout(() => setNotification(null), 3000)
+    }
+  }
+
+  const handleAddCard = async (deckCard) => {
+    try {
+      let result
+      
+      if (deckCard.isBasicLand) {
+        // Handle basic lands
+        const landName = deckCard.cardData.name
+        result = await addBasicLandsToDeck(deckId, [{ landName, quantity: 1 }])
+      } else {
+        // Handle regular cards
+        result = await addCardToDeck(deckId, deckCard.cardData, 1)
+      }
+      
+      if (result.success) {
+        // Reload deck data
+        const [deckResult, analyticsResult] = await Promise.all([
+          getDeckById(deckId),
+          getDeckAnalytics(deckId)
+        ])
+
+        if (deckResult.success) setDeck(deckResult.deck)
+        if (analyticsResult.success) setAnalytics(analyticsResult.analytics)
+
+        setNotification({ type: 'success', message: 'Card added to deck' })
+        setTimeout(() => setNotification(null), 3000)
+      } else {
+        setNotification({ type: 'error', message: result.error || 'Failed to add card' })
+        setTimeout(() => setNotification(null), 3000)
+      }
+    } catch (error) {
+      console.error('Error adding card:', error)
+      setNotification({ type: 'error', message: 'An error occurred while adding the card' })
       setTimeout(() => setNotification(null), 3000)
     }
   }
@@ -250,7 +283,8 @@ export default function DeckViewPage() {
     }
   }
 
-  // Helper function to get image URL for a card
+
+  // Helper function to get image URL for a card (used in modal)
   const getCardImageUrl = (deckCard) => {
     const cardData = deckCard.cardData
     if (!cardData) return null
@@ -753,111 +787,17 @@ export default function DeckViewPage() {
               </button>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
-              {filteredCards.map((deckCard, index) => (
-                <div key={`${deckCard.collectionCardId}-${index}`} className="p-4 hover:bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      {/* Card Image or Mana Symbol */}
-                      <div className="flex-shrink-0">
-                        {deckCard.isBasicLand ? (
-                          <div className="w-12 h-16 bg-gray-100 rounded border flex items-center justify-center">
-                            <i className={`ms ms-${deckCard.cardData.name === 'Plains' ? 'w' :
-                                                   deckCard.cardData.name === 'Island' ? 'u' :
-                                                   deckCard.cardData.name === 'Swamp' ? 'b' :
-                                                   deckCard.cardData.name === 'Mountain' ? 'r' :
-                                                   deckCard.cardData.name === 'Forest' ? 'g' : 'c'} ms-cost text-2xl`} 
-                               style={{
-                                 color: deckCard.cardData.name === 'Plains' ? '#f59e0b' :
-                                        deckCard.cardData.name === 'Island' ? '#3b82f6' :
-                                        deckCard.cardData.name === 'Swamp' ? '#6b7280' :
-                                        deckCard.cardData.name === 'Mountain' ? '#ef4444' :
-                                        deckCard.cardData.name === 'Forest' ? '#10b981' : '#6b7280'
-                               }}></i>
-                          </div>
-                        ) : deckCard.cardData?.imageSources?.[0] ? (
-                          <img
-                            src={deckCard.cardData.imageSources[0]}
-                            alt={deckCard.cardData.name}
-                            className="w-12 h-16 object-cover rounded border cursor-pointer hover:brightness-110 hover:scale-105 transition-all duration-200"
-                            onClick={(e) => handleCardImageClick(deckCard, e)}
-                            title={`Click to view ${deckCard.cardData.name} enlarged`}
-                            onError={(e) => {
-                              // Try next image source
-                              const nextSrc = deckCard.cardData.imageSources[1]
-                              if (nextSrc && e.target.src !== nextSrc) {
-                                e.target.src = nextSrc
-                              }
-                            }}
-                          />
-                        ) : getCardImageUrl(deckCard) ? (
-                          <img
-                            src={getCardImageUrl(deckCard)}
-                            alt={deckCard.cardData?.name || 'Card'}
-                            className="w-12 h-16 object-cover rounded border cursor-pointer hover:brightness-110 hover:scale-105 transition-all duration-200"
-                            onClick={(e) => handleCardImageClick(deckCard, e)}
-                            title={`Click to view ${deckCard.cardData?.name} enlarged`}
-                            onError={(e) => {
-                              // Hide image if it fails to load
-                              e.target.style.display = 'none'
-                            }}
-                          />
-                        ) : (
-                          <div className="w-12 h-16 bg-gray-200 rounded border flex items-center justify-center">
-                            <span className="text-xs text-gray-500">No Image</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Card Info */}
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-gray-900">
-                          {deckCard.cardData?.name || 'Unknown Card'}
-                        </h4>
-                        <div className="flex items-center gap-3 text-sm text-gray-600">
-                          <span>{deckCard.cardData?.type}</span>
-                          {deckCard.cardData?.manaCost && (
-                            <span>({deckCard.cardData.manaCost})</span>
-                          )}
-                          <span className="capitalize bg-gray-100 px-2 py-1 rounded">
-                            {deckCard.category || 'mainboard'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Quantity */}
-                      <div className="text-center">
-                        <span className="text-lg font-bold text-gray-900">
-                          {deckCard.quantity}x
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handleSetCoverCard(deckCard, index)}
-                        disabled={settingCoverCard !== null}
-                        className="p-2 text-gray-400 hover:text-blue-600 transition-colors disabled:opacity-50"
-                        title="Set as deck cover image"
-                      >
-                        {settingCoverCard === `${deckCard.collectionCardId}-${index}` ? (
-                          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                          <PhotoIcon className="w-4 h-4" />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => handleRemoveCard(deckCard)}
-                        className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                        title="Remove from deck"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                {filteredCards.map((deckCard, index) => (
+                  <DeckCard
+                    key={`${deckCard.collectionCardId}-${index}`}
+                    deckCard={deckCard}
+                    onRemove={() => handleRemoveCard(deckCard)}
+                    onAddCard={() => handleAddCard(deckCard)}
+                  />
+                ))}
+              </div>
             </div>
           )}
         </div>
