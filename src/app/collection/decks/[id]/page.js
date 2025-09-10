@@ -481,6 +481,21 @@ export default function DeckViewPage() {
       }
       case 'quantity':
         return b.quantity - a.quantity
+      case 'totalValue': {
+        // Calculate total value: unit price × quantity
+        const aUnitPrice = cardA?.pricing?.usd || 0
+        const bUnitPrice = cardB?.pricing?.usd || 0
+        const aQuantity = parseInt(a.quantity) || 1
+        const bQuantity = parseInt(b.quantity) || 1
+        const aTotalValue = aUnitPrice * aQuantity
+        const bTotalValue = bUnitPrice * bQuantity
+        return bTotalValue - aTotalValue // High to low
+      }
+      case 'unitPrice': {
+        const aUnitPrice = cardA?.pricing?.usd || 0
+        const bUnitPrice = cardB?.pricing?.usd || 0
+        return bUnitPrice - aUnitPrice // High to low
+      }
       default:
         return (cardA?.name || '').localeCompare(cardB?.name || '')
     }
@@ -1134,6 +1149,8 @@ export default function DeckViewPage() {
                     <option value="cmc">Mana Cost</option>
                     <option value="rarity">Rarity</option>
                     <option value="quantity">Quantity</option>
+                    <option value="totalValue">Total Value (High to Low)</option>
+                    <option value="unitPrice">Unit Price (High to Low)</option>
                   </Select>
                 </div>
               </div>

@@ -181,6 +181,21 @@ export default function CollectionPage() {
           const bCmc = parseInt(b.cmc) || 0
           return aCmc - bCmc
         }
+        case 'totalValue': {
+          // Calculate total value: unit price × quantity
+          const aUnitPrice = a.pricing?.usd || 0
+          const bUnitPrice = b.pricing?.usd || 0
+          const aQuantity = parseInt(a.quantity) || 1
+          const bQuantity = parseInt(b.quantity) || 1
+          const aTotalValue = aUnitPrice * aQuantity
+          const bTotalValue = bUnitPrice * bQuantity
+          return bTotalValue - aTotalValue // High to low
+        }
+        case 'unitPrice': {
+          const aUnitPrice = a.pricing?.usd || 0
+          const bUnitPrice = b.pricing?.usd || 0
+          return bUnitPrice - aUnitPrice // High to low
+        }
         case 'dateAdded':
         default:
           return new Date(b.addedAt || 0) - new Date(a.addedAt || 0)
@@ -588,6 +603,8 @@ export default function CollectionPage() {
                     <option value="set">Set</option>
                     <option value="rarity">Rarity</option>
                     <option value="cmc">Mana Cost</option>
+                    <option value="totalValue">Total Value (High to Low)</option>
+                    <option value="unitPrice">Unit Price (High to Low)</option>
                   </Select>
                 </div>
               </div>
